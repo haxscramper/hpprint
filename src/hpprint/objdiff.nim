@@ -68,7 +68,8 @@ IDEA provide LCS-based difference reports for sequences (if possible)
 
 #========================  diff pretty-printing  =========================#
 
-func getAtPath*[Node](tree: ObjTree[Node], path: TreePath): (ObjTree[Node], seq[ObjAccessor]) =
+func getAtPath*[Node](tree: ObjTree[Node],
+                      path: TreePath): (ObjTree[Node], seq[ObjAccessor]) =
   case tree.kind:
     of okComposed:
       if path.len <= 1:
@@ -81,10 +82,15 @@ func getAtPath*[Node](tree: ObjTree[Node], path: TreePath): (ObjTree[Node], seq[
     of okConstant:
       return (tree, @[ObjAccessor(kind: okConstant)])
     of okSequence:
-      let (subtree, accs) = getAtPath(tree.valItems[path[1]], path[1..^1])
-      return (subtree, @[
-        ObjAccessor(kind: okSequence, idx: path[1])
-      ] & accs)
+      if path.len <= 1: # Get sequence itself
+        return (tree, @[
+          ObjAccessor(kind: okConstant)
+        ])
+      else: # Get element from sequence
+        let (subtree, accs) = getAtPath(tree.valItems[path[1]], path[1..^1])
+        return (subtree, @[
+          ObjAccessor(kind: okSequence, idx: path[1])
+        ] & accs)
     of okTable:
       let (subtree, accs) = getAtPath(tree.valPairs[path[1]].val, path[1..^1])
       return (subtree, @[
@@ -117,11 +123,26 @@ proc ppDiff*[T](lhs, rhs: T, printFull: bool = false): void =
     let (lhsTree, lhsNamePath) = getAtPath(lhsObjTree, path)
     let (rhsTree, rhsNamePath) = getAtPath(rhsObjTree, path)
 
-    echo "Difference at path ", lhsNamePath.toStr(), " kind: ", diffpaths[path]
-    echo "\e[4mlhs val:\e[24m"
-    pprint lhsTree
-    echo "\e[4mrhs val:\e[24m"
-    pprint rhsTree
+    let diff: ObjDiff = diffpaths[path]
+
+    case diff.kind:
+      of odkLen:
+        echo &"Different sequence lengths, lhs: {diff.lhsLen}, ",
+              &"rhs: {diff.rhsLen}"
+        if diff.lhsLen < diff.rhsLen:
+          echo "Excess RHS items"
+          for idx in diff.lhsLen ..< diff.rhsLen:
+            pprint rhsTree.valItems[idx]
+        else:
+          echo "Excess LHS items"
+          for idx in diff.rhsLen ..< diff.lhsLen:
+            pprint lhsTree.valItems[idx]
+      else:
+        echo "Difference at path ", lhsNamePath.toStr(), " kind: ", diff
+        echo "\e[4mlhs val:\e[24m"
+        pprint lhsTree
+        echo "\e[4mrhs val:\e[24m"
+        pprint rhsTree
 
 proc assertNoDiff*[T](lhs, rhs: T): void =
   if lhs != rhs:
