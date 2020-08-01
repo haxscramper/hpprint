@@ -1,22 +1,16 @@
 import hasts/[graphviz_ast, html_ast]
-import types/[
+import hdrawing, hdrawing/[term_buf, block_grid]
+
+import hmisc/algo/htree_mapping
+import hmisc/helpers
+import hmisc/types/[
   hnim_ast,
-  block_grid,
   seq2d,
   hvariant,
-  hterm_buf,
-  hdrawing
 ]
 
 export hvariant
-
-import hcommon_converters
-export hcommon_converters
-
-import algo/htree_mapping
-
-import hpprint, helpers
-
+import ../hpprint
 import sequtils
 
 func toTermBuf*(obj: ObjElem[TermTextConf]): TermBuf = toTermBuf(obj.text)

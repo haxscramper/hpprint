@@ -1,5 +1,5 @@
-import types/[htrie, hnim_ast]
-import hpprint
+import hmisc/types/[htrie, hnim_ast]
+import ../hpprint
 
 #===========================  type definition  ===========================#
 

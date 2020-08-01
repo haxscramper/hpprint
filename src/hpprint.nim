@@ -9,8 +9,8 @@
 
 ## Universal pretty-printer
 
-import types/[hnim_ast, hprimitives]
-import helpers
+import hmisc/types/[hnim_ast, hprimitives]
+import hmisc/helpers
 
 import strformat, tables, strutils, sequtils, unicode
 import with, gara # TODO remove gara from dependencies

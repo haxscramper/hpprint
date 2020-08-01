@@ -3,18 +3,18 @@ import unittest, shell, sugar, sequtils
 import hmisc/[helpers]
 import strutils
 
+
 import hasts/[graphviz_ast, html_ast]
-import hmisc/types/[
-  block_grid,
-  hdrawing,
-  hnim_ast,
-  htrie,
-]
+import hdrawing, hdrawing/block_grid
 
 import hmisc/macros/[obj_field_macros]
+import ../src/hpprint
+import ../src/hpprint/[hpprint_graphviz]
+import hmisc/types/[seq2d, htrie, hnim_ast]
 
-import hmisc/[hpprint, hpprint_graphviz, hcommon_converters]
-import hmisc/types/seq2d
+converter toSeq2D*[T](s: seq[seq[T]]): Seq2d[T] =
+  makeSeq2D(s)
+
 
 suite "Block grid":
   test "{makeGrid} make string grid":
@@ -811,7 +811,7 @@ suite "Object tree to dot graph":
     # testgraph(@[12])
 
 
-import hmisc/[objdiff]
+import ../src/hpprint/objdiff
 
 suite "Object diff":
   test "{parallelFieldPairs} field indexing :macro:":
