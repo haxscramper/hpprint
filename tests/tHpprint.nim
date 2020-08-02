@@ -617,3 +617,7 @@ suite "Object diff":
     }, {
       "A" : newStmtList(newLit("hello"), newLit(1.23))
     })
+
+  test "{diff} sequence item count":
+    ppDiff(@[1,2,3], @[1,2,3,4])
+    ppDiff(@[1,2,3,4], @[1,2,3])

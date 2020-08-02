@@ -594,7 +594,8 @@ proc arrangeKVPairs(
         input.mapIt(&"{it.name}{conf.kvSeparator}{it.val.content[0]}").join(
           conf.seqSeparator)
 
-    singleLine = wrapBeg.content & singleLine & wrapEnd.content & current.annotation
+    singleLine = wrapBeg.content & singleLine & wrapEnd.content &
+      current.annotation
 
     if singleLine.termLen < (conf.maxWidth - ident):
       return makeChunk(content = @[singleLine])
@@ -652,7 +653,8 @@ proc pstringRecursive(
 
   case current.kind:
     of okConstant:
-      return makeChunk(content = @[ current.strLit & current.annotation ])
+      result = makeChunk(content = @[
+        current.strLit.styleTerm(current.styling) & current.annotation ])
     of okComposed:
       if not current.sectioned:
         let maxFld = current.fldPairs.mapIt(
@@ -687,6 +689,8 @@ proc pstringRecursive(
 
       result = tmp.arrangeKVPairs(conf, current, ident)
   result.styling = current.styling
+  # echo result.toString()
+  # echo result.content
 
 
 proc prettyString*(tree: ObjTree,

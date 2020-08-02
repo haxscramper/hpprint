@@ -1,6 +1,7 @@
 import hmisc/types/[htrie, hnim_ast]
 import ../hpprint
 import hmisc/macros/obj_field_macros
+import terminal
 
 #===========================  type definition  ===========================#
 
@@ -99,6 +100,25 @@ func getAtPath*[Node](tree: ObjTree[Node],
         ObjAccessor(kind: okTable, key: tree.valPairs[path[1]].key)
       ])
 
+
+func mgetAtPath*[Node](tree: var ObjTree[Node],
+                       path: TreePath): var ObjTree[Node] =
+  case tree.kind:
+    of okComposed:
+      if path.len <= 1:
+        return tree
+      else:
+        return mgetAtPath(tree.fldPairs[path[1]].value, path[1..^1])
+    of okConstant:
+      return tree
+    of okSequence:
+      if path.len <= 1:
+        return tree
+      else:
+        return mgetAtPath(tree.valItems[path[1]], path[1..^1])
+    of okTable:
+      return mgetAtPath(tree.valPairs[path[1]].val, path[1..^1])
+
 func toStr*(accs: seq[ObjAccessor]): string =
   for acc in accs:
     case acc.kind:
@@ -118,7 +138,7 @@ proc ppDiff*[T](lhs, rhs: T, printFull: bool = false): void =
   if diffpaths.paths().len == 0:
     return
 
-  let
+  var
     lhsObjTree = toValObjTree(lhs)
     rhsObjTree = toValObjTree(rhs)
 
@@ -130,22 +150,22 @@ proc ppDiff*[T](lhs, rhs: T, printFull: bool = false): void =
 
     case diff.kind:
       of odkLen:
-        echo &"Different sequence lengths, lhs: {diff.lhsLen}, ",
-              &"rhs: {diff.rhsLen}"
         if diff.lhsLen < diff.rhsLen:
-          echo "Excess RHS items"
+          lhsObjTree.mgetAtPath(path).annotate(&" # Fever elements in LHS")
           for idx in diff.lhsLen ..< diff.rhsLen:
-            pprint rhsTree.valItems[idx]
+            var tree = mgetAtPath(rhsObjTree, path & @[idx])
+            tree.styling.fg = fgGreen
+            lhsObjTree.mgetAtPath(path).valItems.add tree
         else:
-          echo "Excess LHS items"
+          lhsObjTree.mgetAtPath(path).annotate(&" # More elements in LHS")
           for idx in diff.rhsLen ..< diff.lhsLen:
-            pprint lhsTree.valItems[idx]
+            lhsObjTree.mgetAtPath(path & @[idx]).styling.fg = fgRed
       else:
-        echo "Difference at path ", lhsNamePath.toStr(), " kind: ", diff
-        echo "\e[4mlhs val:\e[24m"
-        pprint lhsTree
-        echo "\e[4mrhs val:\e[24m"
-        pprint rhsTree
+        lhsObjTree.mgetAtPath(path).annotate(
+          " " & rhsTree.pstring().toRed())
+        lhsObjTree.mgetAtPath(path).styling.fg = fgGreen
+
+  # pprint lhsObjTree
 
 proc assertNoDiff*[T](lhs, rhs: T): void =
   if lhs != rhs:
