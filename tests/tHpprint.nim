@@ -9,7 +9,7 @@ import hdrawing, hdrawing/block_grid
 
 import hmisc/macros/[obj_field_macros]
 import ../src/hpprint
-import ../src/hpprint/[hpprint_graphviz]
+import ../src/hpprint/[hpprint_graphviz, hpprint_repr]
 import hmisc/types/[seq2d, htrie, hnim_ast, colorstring]
 
 converter toSeq2D*[T](s: seq[seq[T]]): Seq2d[T] =
@@ -60,7 +60,7 @@ suite "Block grid":
     let grid = makeGrid(@[@["hell", "eolrsd"], @["", "123"]])
     let graph = makeDotGraph(nodes = @[makeNode(1, grid.toHtml())])
     graph.toPng("/tmp/hello.png")
-    quit 0
+    # quit 0
 
 
 suite "Block labeling":
@@ -402,7 +402,6 @@ template treeStr(arg: untyped): untyped =
   var counter = makeCounter()
   toSimpleTree(arg, counter).prettyString(treeConf)
 
-import hmisc/algo/hpprint_repr
 suite "Repr pprint":
   test "Lisp repr":
     assertEq pptConst("12").lispRepr(), "12"

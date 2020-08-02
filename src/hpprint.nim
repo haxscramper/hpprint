@@ -77,22 +77,27 @@ proc prettyPrintConverter(val: JsonNode, path: seq[int] = @[0]): ValObjTree =
   case val.kind:
     of JNull:
       return ValObjTree(
-        constType: "nil", kind: okConstant, strLit: "null")
+        constType: "nil", kind: okConstant,
+        strLit: "null", styling: initPrintStyling())
     of JBool:
       return ValObjTree(
-        constType: "bool", kind: okConstant, strLit: $val.getBool())
+        constType: "bool", kind: okConstant,
+        strLit: $val.getBool(), styling: initPrintStyling())
     of JInt:
       return ValObjTree(
-        constType: "int", kind: okConstant, strLit: $val.getInt())
+        constType: "int", kind: okConstant,
+        strLit: $val.getInt(), styling: initPrintStyling())
     of JFloat:
       return ValObjTree(
-        constType: "string", kind: okConstant, strLit: $val.getFloat())
+        constType: "string", kind: okConstant,
+        strLit: $val.getFloat(), styling: initPrintStyling())
     of JString:
       return ValObjTree(
-        constType: "string", kind: okConstant, strLit: &"\"{val.getStr()}\"")
+        constType: "string", kind: okConstant,
+        strLit: &"\"{val.getStr()}\"", styling: initPrintStyling())
     of JArray:
       return ValObjTree(
-        kind: okSequence,
+        kind: okSequence, styling: initPrintStyling(),
         valItems: val.getElems().mapPairs(
           prettyPrintConverter(rhs, path = path & @[idx])
         )
@@ -103,6 +108,7 @@ proc prettyPrintConverter(val: JsonNode, path: seq[int] = @[0]): ValObjTree =
         namedFields: true,
         namedObject: false,
         sectioned: false,
+        styling: initPrintStyling(),
         fldPairs: val.getFields().mapPairs((
           name: lhs,
           value: prettyPrintConverter(rhs, path = path & @[idx])
@@ -110,6 +116,7 @@ proc prettyPrintConverter(val: JsonNode, path: seq[int] = @[0]): ValObjTree =
 
 proc prettyPrintConverter(val: seq[Rune], path: seq[int] = @[0]): ValObjTree =
   ValObjTree(
+    styling: initPrintStyling(),
     kind: okConstant,
     constType: "seq[Rune]",
     strLit: &"\"{val}\""
@@ -180,7 +187,7 @@ proc toSimpleTree*[Obj](
 
     # IMPLEMENT Insert values in sorted order to give the same layout
     # for unordered containers
-    result = ValObjTree(
+    result = ValObjTree(styling: initPrintStyling(),
       kind: okTable,
       keyType: $typeof((pairs(entry).nthType1)),
       valType: $typeof((pairs(entry).nthType2)),
@@ -199,7 +206,7 @@ proc toSimpleTree*[Obj](
     (compiles(for i in items(entry): discard)) or
     (compiles(for i in items(entry[]): discard))
   ):
-    result = ValObjTree(
+    result = ValObjTree(styling: initPrintStyling(),
       kind: okSequence,
       itemType: $typeof(items(unref entry)),
       objId: (entry is ref).tern(
@@ -225,7 +232,7 @@ proc toSimpleTree*[Obj](
       else:
         idCounter.next()
     when (entry is object) or (entry is ref object):
-      result = ValObjTree(
+      result = ValObjTree(styling: initPrintStyling(),
         kind: okComposed,
         name: $typeof(Obj),
         sectioned: false,
@@ -234,7 +241,7 @@ proc toSimpleTree*[Obj](
         objId: id
       )
     elif isNamedTuple(Obj):
-      result = ValObjTree(
+      result = ValObjTree(styling: initPrintStyling(),
         kind: okComposed,
         name: $typeof(Obj),
         sectioned: false,
@@ -243,7 +250,7 @@ proc toSimpleTree*[Obj](
         objId: id
       )
     else:
-      result = ValObjTree(
+      result = ValObjTree(styling: initPrintStyling(),
         kind: okComposed,
         sectioned: false,
         namedFields: false,
@@ -255,7 +262,7 @@ proc toSimpleTree*[Obj](
 
     when (entry is ref object):
       if entry == nil:
-        result = ValObjTree(
+        result = ValObjTree(styling: initPrintStyling(),
           kind: okConstant,
           constType: $(typeof(Obj)),
           strLit: "nil",
@@ -281,7 +288,7 @@ proc toSimpleTree*[Obj](
 
 
   elif (entry is proc):
-    result = ValObjTree(
+    result = ValObjTree(styling: initPrintStyling(),
       kind: okConstant,
       constType: $(typeof(Obj)),
       strLit: $(typeof(Obj)),
@@ -300,7 +307,7 @@ proc toSimpleTree*[Obj](
     else:
       let val = $entry
 
-    result = ValObjTree(
+    result = ValObjTree(styling: initPrintStyling(),
       kind: okConstant,
       constType: $typeof(Obj),
       strLit: val,
