@@ -10,7 +10,7 @@ import hdrawing, hdrawing/block_grid
 import hmisc/macros/[obj_field_macros]
 import ../src/hpprint
 import ../src/hpprint/[hpprint_graphviz]
-import hmisc/types/[seq2d, htrie, hnim_ast]
+import hmisc/types/[seq2d, htrie, hnim_ast, colorstring]
 
 converter toSeq2D*[T](s: seq[seq[T]]): Seq2d[T] =
   makeSeq2D(s)
@@ -232,6 +232,30 @@ suite "Simple configuration":
     assertEq C(kind: true, f90: "12").pstr(), "C(kind: true, f90: \"12\")"
     assertEq C(kind: false, f09: (1.2, "12")).pstr(),
          "C(kind: false, f09: (1.2, \"12\"))"
+
+suite "Colored printing":
+  test "Field annotation":
+    type
+      A = object
+        f1: seq[int]
+        f2: seq[A]
+
+    var tree = toValObjTree(A(f2: @[
+      A(f1: @[1,2,3,4,5,6]),
+      A(f1: @[1,2,3,4,5,6]),
+      A(f1: @[1,2,3,4,5,6]),
+      A(f1: @[1,2,3,4,5,6]),
+      A(f1: @[1,2,3,4,5,6]),
+      A(f1: @[1,2,3,4,5,6]),
+      A(f1: @[1,2,3,4,5,6]),
+      A(f1: @[1,2,3,4,5,6])
+    ]))
+
+    tree.getAtPath(objPath("f1")).annotate(" Hello".toRed())
+    tree.getAtPath(objPath("f2")).annotate(" Hello".toGreen())
+    tree.getAtPath(objPath("f2", 0, "f1")).annotate(" Hello".toYellow())
+    echo tree.pstring()
+
 
 suite "Deeply nested types":
   test "8D sequence":

@@ -315,7 +315,13 @@ type
     content: seq[string] ## Lines for chunk
     maxWidth: int ## Max line lenght in chunk
 
+  KVPair* = object
+    name: string
+    val: Chunk
+    annotation: string
 
+func kvPair*(name: string, val: Chunk, annotation: string): KVPair =
+  KVPair(name: name, val: val, annotation: annotation)
 
 type
   RelPos* = enum
@@ -559,7 +565,8 @@ proc arrangeKVPairs(
   conf: PPrintConf, current: ValObjTree, ident: int): Chunk =
   ## Layout sequence of key-value pairs. `name` field in tuple items
   ## might be empty if `current.kind` is `okSequence`.
-
+  # if current.annotation.len > 0:
+  #   echo current.annotation, " ", current.kind
   let (wrapBeg, wrapEnd) = getWrapperConf(current, conf)
 
   let trySingleLine = (not input.anyOfIt(it.val.multiline()))
@@ -573,7 +580,7 @@ proc arrangeKVPairs(
         input.mapIt(&"{it.name}{conf.kvSeparator}{it.val.content[0]}").join(
           conf.seqSeparator)
 
-    singleLine = wrapBeg.content & singleLine & wrapEnd.content
+    singleLine = wrapBeg.content & singleLine & wrapEnd.content & current.annotation
 
     if singleLine.termLen < (conf.maxWidth - ident):
       return makeChunk(content = @[singleLine])
@@ -622,16 +629,16 @@ proc arrangeKVPairs(
 
 proc pstringRecursive(
   current: ObjTree, conf: PPrintCOnf, ident: int = 0): Chunk =
+
   case current.kind:
     of okConstant:
-      return makeChunk(content = @[ current.strLit ])
+      return makeChunk(content = @[ current.strLit & current.annotation ])
     of okComposed:
       if not current.sectioned:
         let maxFld = current.fldPairs.mapIt(
           it.name.termLen() + conf.fldNameWrapper.start.content.len() +
           conf.fldNameWrapper.start.content.len()
         ).max()
-
         result = current.fldPairs.mapIt(
           (
             conf.fldNameWrapper.start.content & it.name &
@@ -690,6 +697,12 @@ proc pstring*[Obj](obj: Obj, ident: int = 0, maxWidth: int = 80): string =
   var conf = objectPPrintConf
   conf.maxWidth = maxWidth
   prettyString(toSimpleTree(obj, counter), conf, ident)
+
+
+proc pstring*(obj: ValObjTree, ident: int = 0, maxWidth: int = 80): string =
+  var conf = objectPPrintConf
+  conf.maxWidth = maxWidth
+  prettyString(obj, conf, ident)
 
 proc pprint*[Node](tree: ObjTree[Node], maxw: int = 80): void =
   # FIXME `maxw` does not work correctly
