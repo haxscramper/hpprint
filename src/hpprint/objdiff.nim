@@ -1,4 +1,4 @@
-import hmisc/types/[htrie, hnim_ast]
+import hmisc/types/[htrie, hnim_ast, colorstring]
 import ../hpprint
 import hmisc/macros/obj_field_macros
 import terminal
@@ -110,6 +110,7 @@ func mgetAtPath*[Node](tree: var ObjTree[Node],
       else:
         return mgetAtPath(tree.fldPairs[path[1]].value, path[1..^1])
     of okConstant:
+      # debugecho tree
       return tree
     of okSequence:
       if path.len <= 1:
@@ -145,27 +146,29 @@ proc ppDiff*[T](lhs, rhs: T, printFull: bool = false): void =
   for path in diffpaths.paths():
     let (lhsTree, lhsNamePath) = getAtPath(lhsObjTree, path)
     let (rhsTree, rhsNamePath) = getAtPath(rhsObjTree, path)
-
     let diff: ObjDiff = diffpaths[path]
-
+    # echo path
     case diff.kind:
       of odkLen:
         if diff.lhsLen < diff.rhsLen:
-          lhsObjTree.mgetAtPath(path).annotate(&" # Fever elements in LHS")
+          lhsObjTree.mgetAtPath(path).annotate(
+            " # Fever elements in LHS".toYellow({styleItalic}))
           for idx in diff.lhsLen ..< diff.rhsLen:
             var tree = mgetAtPath(rhsObjTree, path & @[idx])
             tree.styling.fg = fgGreen
             lhsObjTree.mgetAtPath(path).valItems.add tree
         else:
-          lhsObjTree.mgetAtPath(path).annotate(&" # More elements in LHS")
+          lhsObjTree.mgetAtPath(path).annotate(
+            " # More elements in LHS".toYellow({styleItalic}))
           for idx in diff.rhsLen ..< diff.lhsLen:
             lhsObjTree.mgetAtPath(path & @[idx]).styling.fg = fgRed
       else:
         lhsObjTree.mgetAtPath(path).annotate(
-          " " & rhsTree.pstring().toRed())
+          " " & rhsTree.pstring().toRed() &
+            " # Value mismatch".toYellow({styleItalic}))
         lhsObjTree.mgetAtPath(path).styling.fg = fgGreen
 
-  # pprint lhsObjTree
+  pprint lhsObjTree
 
 proc assertNoDiff*[T](lhs, rhs: T): void =
   if lhs != rhs:

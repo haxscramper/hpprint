@@ -625,7 +625,8 @@ proc arrangeKVPairs(
       of okConstant:
         raiseAssert("Invalid current kind: constant")
 
-    return (pos, (text & it.annotation, conf.identStr.termLen()))
+    return (pos, (text # & it.annotation
+                         , conf.identStr.termLen()))
 
   let (itemLabels, blockLabels, widthConf) =
     getLabelConfiguration(conf = conf, current = current, ident = ident)
@@ -640,14 +641,6 @@ proc arrangeKVPairs(
   .makeChunk()
   .relativePosition(blockLabels)
 
-  # for pair in input:
-  #   echo pair.name
-  #   echo pair.val.toString()
-
-  # echo result.toString()
-
-  # result.styling = current.styling
-
 proc pstringRecursive(
   current: ObjTree, conf: PPrintCOnf, ident: int = 0): Chunk =
 
@@ -661,14 +654,18 @@ proc pstringRecursive(
           it.name.termLen() + conf.fldNameWrapper.start.content.len() +
           conf.fldNameWrapper.start.content.len()
         ).max()
-        result = current.fldPairs.mapIt(
-          kvPair(
+
+        var tmp: seq[KVPair]
+        for it in current.fldPairs:
+          # echo it.value
+          tmp.add kvPair(
             conf.fldNameWrapper.start.content & it.name &
               conf.fldNameWrapper.final.content,
             pstringRecursive(it.value, conf, maxFld + ident),
             it.value.annotation
           )
-        ).arrangeKVPairs(conf, current, ident + maxFld)
+
+        result = tmp.arrangeKVPairs(conf, current, ident + maxFld)
     of okTable:
       let maxFld = current.valPairs.mapIt(it.key.termLen()).max(0)
       result = current.valPairs.mapIt(
