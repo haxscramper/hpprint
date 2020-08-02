@@ -314,6 +314,7 @@ type
   Chunk* = object
     content: seq[string] ## Lines for chunk
     maxWidth: int ## Max line lenght in chunk
+    styling: PrintStyling
 
   KVPair* = object
     name: string
@@ -345,7 +346,12 @@ type
     # <label>[|||||||]
 
 proc lineCount(c: Chunk): int = c.content.len()
-proc `$`*(c: Chunk): string = c.content.join("\n")
+func toString*(c: Chunk, indent: int = 0): string =
+  c.content.mapIt(" ".repeat(indent) & it).
+    join("\n").styleTerm(c.styling)
+
+
+proc `$`*(c: Chunk): string = c.toString()
 
 func multiline(chunk: Chunk): bool = chunk.content.len > 1
 func empty(conf: Delim): bool = conf.content.len == 0
@@ -437,9 +443,10 @@ proc relativePosition*(
 
   for idx, line in chunk.content:
     if idx == 0 and (rpTopLeftLeft in labels):
-      resLines.add(labels[rpTopLeftLeft].text & line)
+      resLines.add(labels[rpTopLeftLeft].text &
+        line.styleTerm(chunk.styling))
     else:
-      resLines.add(pref & line)
+      resLines.add(pref & line.styleTerm(chunk.styling))
 
   if (rpBottomRight in labels) and
      (rpBottomRight notin ignored) and
@@ -615,7 +622,7 @@ proc arrangeKVPairs(
   let (itemLabels, blockLabels, widthConf) =
     getLabelConfiguration(conf = conf, current = current, ident = ident)
 
-  return input.enumerate().mapIt(
+  result = input.enumerate().mapIt(
     relativePosition(it[1].val, (@[makeFldName(it[1])])).
     relativePosition(
       itemLabels,
@@ -625,7 +632,13 @@ proc arrangeKVPairs(
   .makeChunk()
   .relativePosition(blockLabels)
 
+  # for pair in input:
+  #   echo pair.name
+  #   echo pair.val.toString()
 
+  # echo result.toString()
+
+  # result.styling = current.styling
 
 proc pstringRecursive(
   current: ObjTree, conf: PPrintCOnf, ident: int = 0): Chunk =
@@ -649,7 +662,7 @@ proc pstringRecursive(
         ).arrangeKVPairs(conf, current, ident + maxFld)
     of okTable:
       let maxFld = current.valPairs.mapIt(it.key.termLen()).max(0)
-      return current.valPairs.mapIt(
+      result = current.valPairs.mapIt(
         kvPair(
           it.key,
           pstringRecursive(it.val, conf, maxFld + ident),
@@ -657,23 +670,24 @@ proc pstringRecursive(
         )
       ).arrangeKVPairs(conf, current, ident + maxFld)
     of okSequence:
-      let tmp = current.valItems.mapIt(
-        kvPair(
+      var tmp: seq[KVPair]
+      for it in current.valItems:
+        tmp.add kvPair(
           "",
           pstringRecursive(it, conf, ident + conf.seqPrefix.termLen()),
           it.annotation
         )
-      )
 
       result = tmp.arrangeKVPairs(conf, current, ident)
+  result.styling = current.styling
+
 
 proc prettyString*(tree: ObjTree,
                    conf: PPrintConf, ident: int = 0): string =
   ## Convert object tree to pretty-printed string using configuration `conf`
   var newConf = conf
   newConf.maxWidth = conf.maxWidth - ident
-  pstringRecursive(tree, newConf, ident = ident).content.mapIt(
-    " ".repeat(ident) & it).join("\n")
+  pstringRecursive(tree, newConf, ident = ident).toString(ident)
 
 
 const objectPPrintConf = PPrintConf(

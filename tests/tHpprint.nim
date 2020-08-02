@@ -1,4 +1,4 @@
-import unittest, shell, sugar, sequtils
+import unittest, shell, sugar, sequtils, terminal
 
 import hmisc/[helpers]
 import strutils
@@ -246,16 +246,19 @@ suite "Colored printing":
       A(f1: @[1,2,3,4,5,6]),
       A(f1: @[1,2,3,4,5,6]),
       A(f1: @[1,2,3,4,5,6]),
-      A(f1: @[1,2,3,4,5,6]),
-      A(f1: @[1,2,3,4,5,6]),
-      A(f1: @[1,2,3,4,5,6]),
-      A(f1: @[1,2,3,4,5,6]),
       A(f1: @[1,2,3,4,5,6])
     ]))
 
     tree.getAtPath(objPath("f1", 0)).annotate(" Hello".toRed())
     tree.getAtPath(objPath("f2")).annotate("Hello".toGreen())
-    tree.getAtPath(objPath("f2", 0, "f1")).annotate(" Hello".toYellow())
+    tree.getAtPath(objPath("f2")).stylize(PrintStyling(
+      fg: fgRed
+    ))
+
+    tree.getAtPath(objPath("f2", 1)).stylize(PrintStyling(
+      fg: fgBlue
+    ))
+
     echo tree.pstring()
 
 
