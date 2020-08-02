@@ -9,7 +9,7 @@
 
 ## Universal pretty-printer
 
-import hmisc/types/[hnim_ast, hprimitives]
+import hmisc/types/[hnim_ast, hprimitives, colorstring]
 import hmisc/helpers
 
 import strformat, tables, strutils, sequtils, unicode
@@ -355,12 +355,12 @@ proc makeChunk*(content: seq[string]): Chunk =
   ## Create chunk from list of lines
   Chunk(
     content: content,
-    maxWidth: content.mapIt(it.len()).max(0)
+    maxWidth: content.mapIt(it.termLen()).max(0)
   )
 
 proc makeChunk*(content: string): Chunk =
   ## Create chunk from string
-  Chunk(content: @[content], maxWidth: content.len)
+  Chunk(content: @[content], maxWidth: content.termLen())
 
 proc makeChunk*(other: seq[Chunk]): Chunk =
   ## Create chunk from lines in other chunks
@@ -368,7 +368,7 @@ proc makeChunk*(other: seq[Chunk]): Chunk =
     content: sequtils.concat(other.mapIt(it.content))
   )
 
-  result.maxWidth = result.content.mapIt(it.len()).max(0)
+  result.maxWidth = result.content.mapIt(it.termLen()).max(0)
 
 type
   ChunkLabels* = Table[RelPos, tuple[text: string, offset: int]]
@@ -404,17 +404,17 @@ proc relativePosition*(
     with label:
       match(pos): # XXX remove `match`, use `case`
         rpBottomRight:
-          rightPad = text.len
+          rightPad = text.termLen
         rpTopLeftAbove:
           topPad = 1
           leftPad = max(offset, leftPad)
         rpTopLeftLeft:
-          leftPad = max(leftPad, text.len)
+          leftPad = max(leftPad, text.termLen)
         rpBottomLeft:
           bottomPad = 1
           leftPad = max(leftPad, offset)
         rpPrefix:
-          leftPad = text.len
+          leftPad = text.termLen
 
   let resWidth = chunk.maxWidth + leftPad + rightPad
   let resHeight = chunk.lineCount + topPad + bottomPad
@@ -490,12 +490,12 @@ proc getLabelConfiguration(
   var maxWidth = 0 # Max allowed withd
   var itemLabels: ChunkLabels
   var blockLabels: ChunkLabels
-  let offset = conf.identStr.len # Internal offset between prefix
-                                 # delimiter and chunk body
-  let prefixOverride = (current.kind == okSequence) and (conf.seqPrefix.len > 0)
+  let offset = conf.identStr.termLen # Internal offset between prefix
+                                     # delimiter and chunk body
+  let prefixOverride = (current.kind == okSequence) and (conf.seqPrefix.termLen > 0)
   match((prefixOverride, wrapBeg.preferMultiline, wrapEnd.preferMultiline)):
     (true, _, _):
-      subIdent = conf.seqPrefix.len
+      subIdent = conf.seqPrefix.termLen
       maxWidth = conf.maxWidth
       itemLabels[rpTopLeftLeft] = (text: conf.seqPrefix, offset: 0)
     (_, true, true):
@@ -575,14 +575,14 @@ proc arrangeKVPairs(
 
     singleLine = wrapBeg.content & singleLine & wrapEnd.content
 
-    if singleLine.len < (conf.maxWidth - ident):
+    if singleLine.termLen < (conf.maxWidth - ident):
       return makeChunk(content = @[singleLine])
 
   # Try positioning on multiple lines
   let fldsWidth =
     # Width of the larges field
     if current.isKVPairs():
-      input.mapIt(it.name.len()).max() + conf.kvSeparator.len()
+      input.mapIt(it.name.termLen()).max() + conf.kvSeparator.len()
     else:
       0
 
@@ -603,7 +603,7 @@ proc arrangeKVPairs(
       of okConstant:
         raiseAssert("Invalid current kind: constant")
 
-    return (pos, (text, conf.identStr.len()))
+    return (pos, (text, conf.identStr.termLen()))
 
   let (itemLabels, blockLabels, widthConf) =
     getLabelConfiguration(conf = conf, current = current, ident = ident)
@@ -628,7 +628,7 @@ proc pstringRecursive(
     of okComposed:
       if not current.sectioned:
         let maxFld = current.fldPairs.mapIt(
-          it.name.len() + conf.fldNameWrapper.start.content.len() +
+          it.name.termLen() + conf.fldNameWrapper.start.content.len() +
           conf.fldNameWrapper.start.content.len()
         ).max()
 
@@ -640,13 +640,13 @@ proc pstringRecursive(
           )
         ).arrangeKVPairs(conf, current, ident + maxFld)
     of okTable:
-      let maxFld = current.valPairs.mapIt(it.key.len()).max(0)
+      let maxFld = current.valPairs.mapIt(it.key.termLen()).max(0)
       return current.valPairs.mapIt(
         (it.key, pstringRecursive(it.val, conf, maxFld + ident))
       ).arrangeKVPairs(conf, current, ident + maxFld)
     of okSequence:
       let tmp = current.valItems.mapIt(
-        ("", pstringRecursive(it, conf, ident + conf.seqPrefix.len()))
+        ("", pstringRecursive(it, conf, ident + conf.seqPrefix.termLen()))
       )
       result = tmp.arrangeKVPairs(conf, current, ident)
 
@@ -691,9 +691,10 @@ proc pstring*[Obj](obj: Obj, ident: int = 0, maxWidth: int = 80): string =
   conf.maxWidth = maxWidth
   prettyString(toSimpleTree(obj, counter), conf, ident)
 
-proc pprint*[Node](tree: ObjTree[Node]): void =
+proc pprint*[Node](tree: ObjTree[Node], maxw: int = 80): void =
+  # FIXME `maxw` does not work correctly
   var conf = objectPPrintConf
-  conf.maxWidth = 80
+  conf.maxWidth = maxw
   echo prettyString(tree, conf)
 
 

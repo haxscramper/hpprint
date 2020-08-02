@@ -1,5 +1,6 @@
 import hmisc/types/[htrie, hnim_ast]
 import ../hpprint
+import hmisc/macros/obj_field_macros
 
 #===========================  type definition  ===========================#
 
@@ -44,11 +45,12 @@ IDEA provide LCS-based difference reports for sequences (if possible)
 
   when (T is seq) or (T is array):
     if lhsIn.len() != rhsIn.len():
-      result[path] = ObjDiff(kind: odkLen, lhsLen: lhsIn.len(), rhsLen: rhsIn.len())
+      result[path] = ObjDiff(kind: odkLen,
+                             lhsLen: lhsIn.len(), rhsLen: rhsIn.len())
 
     for idx, (lval, rval) in zip(lhsIn, rhsIn):
       result.merge diff(lval, rval, path & @[idx])
-  elif (T is object) or (T is tuple):
+  elif (T is object) or (T is tuple) or (T is ref object):
     mixin parallelFieldPairs
     parallelFieldPairs(lhsIn, rhsIn):
       when isKind:
@@ -111,6 +113,7 @@ func toStr*(accs: seq[ObjAccessor]): string =
 
 proc ppDiff*[T](lhs, rhs: T, printFull: bool = false): void =
   ## Pretty-print difference between two objects
+  # TODO print items side-by-side if possible
   let diffpaths = diff(lhs, rhs)
   if diffpaths.paths().len == 0:
     return
