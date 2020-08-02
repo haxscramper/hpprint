@@ -561,7 +561,7 @@ proc getLabelConfiguration(
 
 
 proc arrangeKVPairs(
-  input: seq[tuple[name: string, val: Chunk]],
+  input: seq[KVPair],
   conf: PPrintConf, current: ValObjTree, ident: int): Chunk =
   ## Layout sequence of key-value pairs. `name` field in tuple items
   ## might be empty if `current.kind` is `okSequence`.
@@ -593,7 +593,7 @@ proc arrangeKVPairs(
     else:
       0
 
-  proc makeFldName(it: tuple[name: string, val: Chunk]): (RelPos, (string, int)) =
+  proc makeFldName(it: KVPair): (RelPos, (string, int)) =
     let pos = case current.kind:
       of okSequence: rpTopLeftLeft
       of okTable, okComposed: (it.val.multiline()).tern(rpTopLeftAbove, rpTopLeftLeft)
@@ -610,7 +610,7 @@ proc arrangeKVPairs(
       of okConstant:
         raiseAssert("Invalid current kind: constant")
 
-    return (pos, (text, conf.identStr.termLen()))
+    return (pos, (text & it.annotation, conf.identStr.termLen()))
 
   let (itemLabels, blockLabels, widthConf) =
     getLabelConfiguration(conf = conf, current = current, ident = ident)
@@ -640,24 +640,35 @@ proc pstringRecursive(
           conf.fldNameWrapper.start.content.len()
         ).max()
         result = current.fldPairs.mapIt(
-          (
+          kvPair(
             conf.fldNameWrapper.start.content & it.name &
               conf.fldNameWrapper.final.content,
-            pstringRecursive(it.value, conf, maxFld + ident)
+            pstringRecursive(it.value, conf, maxFld + ident),
+            it.value.annotation
           )
         ).arrangeKVPairs(conf, current, ident + maxFld)
     of okTable:
       let maxFld = current.valPairs.mapIt(it.key.termLen()).max(0)
       return current.valPairs.mapIt(
-        (it.key, pstringRecursive(it.val, conf, maxFld + ident))
+        kvPair(
+          it.key,
+          pstringRecursive(it.val, conf, maxFld + ident),
+          it.val.annotation
+        )
       ).arrangeKVPairs(conf, current, ident + maxFld)
     of okSequence:
       let tmp = current.valItems.mapIt(
-        ("", pstringRecursive(it, conf, ident + conf.seqPrefix.termLen()))
+        kvPair(
+          "",
+          pstringRecursive(it, conf, ident + conf.seqPrefix.termLen()),
+          it.annotation
+        )
       )
+
       result = tmp.arrangeKVPairs(conf, current, ident)
 
-proc prettyString*(tree: ObjTree, conf: PPrintConf, ident: int = 0): string =
+proc prettyString*(tree: ObjTree,
+                   conf: PPrintConf, ident: int = 0): string =
   ## Convert object tree to pretty-printed string using configuration `conf`
   var newConf = conf
   newConf.maxWidth = conf.maxWidth - ident

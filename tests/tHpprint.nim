@@ -240,7 +240,9 @@ suite "Colored printing":
         f1: seq[int]
         f2: seq[A]
 
-    var tree = toValObjTree(A(f2: @[
+    var tree = toValObjTree(A(
+      f1: @[21],
+      f2: @[
       A(f1: @[1,2,3,4,5,6]),
       A(f1: @[1,2,3,4,5,6]),
       A(f1: @[1,2,3,4,5,6]),
@@ -251,10 +253,11 @@ suite "Colored printing":
       A(f1: @[1,2,3,4,5,6])
     ]))
 
-    tree.getAtPath(objPath("f1")).annotate(" Hello".toRed())
-    tree.getAtPath(objPath("f2")).annotate(" Hello".toGreen())
+    tree.getAtPath(objPath("f1", 0)).annotate(" Hello".toRed())
+    tree.getAtPath(objPath("f2")).annotate("Hello".toGreen())
     tree.getAtPath(objPath("f2", 0, "f1")).annotate(" Hello".toYellow())
     echo tree.pstring()
+
 
 
 suite "Deeply nested types":
