@@ -621,3 +621,15 @@ suite "Object diff":
   test "{diff} sequence item count":
     ppDiff(@[1,2,3], @[1,2,3,4])
     ppDiff(@[1,2,3,4], @[1,2,3])
+
+  test "{annotate} set annotation for object":
+    var tree = toValObjTree(@[
+      @[2,3,43,4,5],
+      @[2,3,43,4,5],
+    ])
+
+    tree.mgetAtPath(@[0, 0]).annotate(" # Hello\n # World".toYellow())
+    tree.mgetAtPath(@[0, 0, 1]).annotate(" # Hello".toRed())
+
+    tree.pprint()
+    tree.pprint(2)

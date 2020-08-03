@@ -361,6 +361,8 @@ func toString*(c: Chunk, indent: int = 0): string =
 proc `$`*(c: Chunk): string = c.toString()
 
 func multiline(chunk: Chunk): bool = chunk.content.len > 1
+func multiline(str: string): bool = str.anyOfIt(it == '\n')
+
 func empty(conf: Delim): bool = conf.content.len == 0
 func makeDelim*(str: string, multiline: bool = false): Delim =
   Delim(
@@ -583,7 +585,8 @@ proc arrangeKVPairs(
   #   echo current.annotation, " ", current.kind
   let (wrapBeg, wrapEnd) = getWrapperConf(current, conf)
 
-  let trySingleLine = (not input.anyOfIt(it.val.multiline()))
+  let trySingleLine = (not input.anyOfIt(it.val.multiline())) and
+    (not input.anyOfIt(it.annotation.multiline()))
 
   if trySingleLine:
     var singleLine =
@@ -594,11 +597,16 @@ proc arrangeKVPairs(
         input.mapIt(&"{it.name}{conf.kvSeparator}{it.val.content[0]}").join(
           conf.seqSeparator)
 
-    singleLine = wrapBeg.content & singleLine & wrapEnd.content &
-      current.annotation
+    singleLine = wrapBeg.content & singleLine & wrapEnd.content
+    let
+      annotLines = current.annotation.splitColor("\n")
+      maxAnnWidth = annotLines.maxIt(it.termLen())
+      singleLen = singleLine.termLen
 
-    if singleLine.termLen < (conf.maxWidth - ident):
-      return makeChunk(content = @[singleLine])
+    if singleLen + maxAnnWidth < (conf.maxWidth - ident):
+      return makeChunk(content = @[
+        singleLine & annotLines[0]
+      ] & annotLines[1..^1].mapIt(" ".repeat(singleLen) & it))
 
   # Try positioning on multiple lines
   let fldsWidth =
@@ -683,6 +691,8 @@ proc pstringRecursive(
           pstringRecursive(it, conf, ident + conf.seqPrefix.termLen()),
           it.annotation
         )
+
+        # echo it.annotation
 
       result = tmp.arrangeKVPairs(conf, current, ident)
   result.styling = current.styling
