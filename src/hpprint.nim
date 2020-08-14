@@ -293,7 +293,7 @@ proc toSimpleTree*[Obj](
       constType: $(typeof(Obj)),
       strLit: $(typeof(Obj)),
       path: path,
-      objId: idCounter()
+      objId: idCounter.next()
     )
   else:
     when entry is string:

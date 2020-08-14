@@ -1,7 +1,7 @@
 import hmisc/types/[htrie, hnim_ast, colorstring]
 import ../hpprint
 import hmisc/macros/obj_field_macros
-import terminal
+import terminal, tables, shell
 
 #===========================  type definition  ===========================#
 
@@ -34,6 +34,13 @@ type
 
 #=========================  diff implementation  =========================#
 
+
+proc pprintCwdiff*[T](lhs, rhs: T): void =
+  "/tmp/generated.nim".writeFile(pstring lhs)
+  "/tmp/expected.nim".writeFile(pstring rhs)
+  shell:
+    "cwdiff" "/tmp/expected.nim" "/tmp/generated.nim"
+
 proc diff*[T](lhsIn, rhsIn: T, path: TreePath = @[0]): ObjDiffPaths = #[
 
 TODO sort fields in unordered associative containers. Otherwise it
@@ -41,6 +48,8 @@ TODO sort fields in unordered associative containers. Otherwise it
 
 IDEA provide LCS-based difference reports for sequences (if possible)
      instead of simply comparing lengths
+
+FIXME cannot deal with `Type = HashTable[...]`
 
 ]#
 
@@ -51,9 +60,22 @@ IDEA provide LCS-based difference reports for sequences (if possible)
 
     for idx, (lval, rval) in zip(lhsIn, rhsIn):
       result.merge diff(lval, rval, path & @[idx])
+  elif (T is Table): # TODO implement table diffing
+    static: echo typeof T
+    let
+      lhsPairs = lhsIn.mapPairs(($lhs, rhs)).withResIt:
+        it.sortedByIt(it[0])
+
+      rhsPairs = rhsIn.mapPairs(($lhs, rhs)).withResIt:
+        it.sortedByIt(it[0])
+
+    for (lhs, rhs) in zip(lhsPairs, rhsPairs):
+      echo lhsPairs
+      echo rhsPairs
+
   elif (T is object) or (T is tuple) or (T is ref object):
     mixin parallelFieldPairs
-    parallelFieldPairs(lhsIn, rhsIn):
+    hackPrivateParallelFieldPairs(lhsIn, rhsIn):
       when isKind:
         if lhs != rhs:
           result[path] = ObjDiff(kind: odkKind)
@@ -132,7 +154,9 @@ func toStr*(accs: seq[ObjAccessor]): string =
       of okConstant:
         discard
 
-proc ppDiff*[T](lhs, rhs: T, printFull: bool = false): void =
+proc ppDiff*[T](lhs, rhs: T,
+                printFull: bool = false,
+                die: bool = false): void =
   ## Pretty-print difference between two objects
   # TODO print items side-by-side if possible
   let diffpaths = diff(lhs, rhs)
@@ -169,8 +193,9 @@ proc ppDiff*[T](lhs, rhs: T, printFull: bool = false): void =
         lhsObjTree.mgetAtPath(path).styling.fg = fgGreen
 
   pprint lhsObjTree
+  if die and diffpaths.paths().len > 0:
+    raiseAssert("Difference between objects")
 
 proc assertNoDiff*[T](lhs, rhs: T): void =
   if lhs != rhs:
-    ppDiff(lhs, rhs)
-    raiseAssert("Difference")
+    ppDiff(lhs, rhs, die = true)
