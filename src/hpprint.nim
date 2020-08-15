@@ -654,8 +654,12 @@ proc pstringRecursive(
 
   case current.kind:
     of okConstant:
-      result = makeChunk(content = @[
-        current.strLit.styleTerm(current.styling) & current.annotation ])
+      var clines: seq[string] = current.strLit.styleTerm(
+        current.styling).splitSGR_sep().mapIt(it.toString())
+
+      clines[^1] &= current.annotation
+      # echo "cl: ", clines
+      result = makeChunk(content = clines)
     of okComposed:
       if not current.sectioned:
         let maxFld = current.fldPairs.mapIt(

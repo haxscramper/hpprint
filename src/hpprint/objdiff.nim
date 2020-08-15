@@ -75,7 +75,7 @@ FIXME cannot deal with `Type = HashTable[...]`
 
   elif (T is object) or (T is tuple) or (T is ref object):
     mixin parallelFieldPairs
-    hackPrivateParallelFieldPairs(lhsIn, rhsIn):
+    parallelFieldPairs(lhsIn, rhsIn):
       when isKind:
         if lhs != rhs:
           result[path] = ObjDiff(kind: odkKind)

@@ -219,6 +219,31 @@ suite "Simple configuration":
   test "Simple object":
     assertEq T(f1: 12).pstr(), "T(f1: 12)"
 
+  test "Multiline constant":
+    type
+      Tt = object
+        f2: string
+
+    let str = Tt(f2: """
+      Aliquam erat volutpat. Nunc sad asdfd
+      non orci commodo lobortis. Proin nequ
+      lobortis eget, lacus. Sed diam. Praes
+      Nullam tempus. Mauris ac felis vel ve
+      pede. Etiam vel neque nec dui digniss
+      Phasellus neque orci, porta a, alique
+      Phasellus purus. Pellentesque tristiq""".dedent()).pstr()
+    # echo str
+    assertEq str, """
+      Tt(
+        f2:
+          "Aliquam erat volutpat. Nunc sad asdfd
+          non orci commodo lobortis. Proin nequ
+          lobortis eget, lacus. Sed diam. Praes
+          Nullam tempus. Mauris ac felis vel ve
+          pede. Etiam vel neque nec dui digniss
+          Phasellus neque orci, porta a, alique
+          Phasellus purus. Pellentesque tristiq"""".dedent
+
   test "Sequence of objects":
     assertEq @[T(f1: 12), T(f1: -99)].pstr(), "[T(f1: 12), T(f1: -99)]"
 

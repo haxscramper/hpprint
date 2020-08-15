@@ -1,0 +1,41 @@
+#+title: readme
+
+Generic configurable pretty-printer.
+
+#+begin_src nim
+  import hpprint
+
+  type
+    Test = object
+      f1: int
+      f2: float
+      f3: string
+      f4: seq[string]
+
+  pprint Test(f4: @[
+    "String one",
+    "string two",
+    "String three",
+    "String with\nnewline separator",
+    "String with\nnewline separator",
+    "String with\nnewline separator"
+  ])
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Test
+  f1: 0
+  f2: 0.0
+  f3: ""
+  f4:
+    - "String one"
+    - "string two"
+    - "String three"
+    - "String with
+      newline separator"
+    - "String with
+      newline separator"
+    - "String with
+      newline separator"
+#+end_example
