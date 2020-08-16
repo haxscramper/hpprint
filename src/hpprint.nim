@@ -193,6 +193,9 @@ proc toSimpleTree*[Obj](
           idCounter
       )))
 
+    result.valPairs.sort do (x, y: auto) -> int:
+      cmp(x[0], y[0])
+
   elif not (
       (entry is string)
     ) and (
