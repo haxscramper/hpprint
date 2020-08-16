@@ -2,21 +2,21 @@ import strutils, sequtils, strformat, sugar
 import hmisc/types/[hnim_ast, colorstring]
 import hmisc/algo/[halgorithm, hseq_mapping, clformat]
 
-func pptConst*(val: string): ValObjTree =
-  ValObjTree(styling: initPrintStyling(), kind: okConstant, strlit: val)
+func pptConst*(val: string): ObjTree =
+  ObjTree(styling: initPrintStyling(), kind: okConstant, strlit: val)
 
-func pptSeq*(vals: varargs[ValObjTree]): ValObjTree =
-  ValObjTree(styling: initPrintStyling(), kind: okSequence, valItems: toSeq(vals))
+func pptSeq*(vals: varargs[ObjTree]): ObjTree =
+  ObjTree(styling: initPrintStyling(), kind: okSequence, valItems: toSeq(vals))
 
-func pptSeq*(valType: string, vals: varargs[ValObjTree]): ValObjTree =
-  ValObjTree(styling: initPrintStyling(), kind: okSequence, valItems: toSeq(vals), itemType: valType)
+func pptSeq*(valType: string, vals: varargs[ObjTree]): ObjTree =
+  ObjTree(styling: initPrintStyling(), kind: okSequence, valItems: toSeq(vals), itemType: valType)
 
 func pptMap*(kvTypes: (string, string),
              vals: varargs[tuple[
                key: string,
-               val: ValObjTree]]): ValObjTree =
+               val: ObjTree]]): ObjTree =
 
-  ValObjTree(styling: initPrintStyling(), kind: okTable,
+  ObjTree(styling: initPrintStyling(), kind: okTable,
              keyType: kvTypes[0],
              valType: kvTypes[1],
              valPairs: toSeq(vals))
@@ -24,22 +24,24 @@ func pptMap*(kvTypes: (string, string),
 func pptObj*(name: string,
              flds: varargs[tuple[
                name: string,
-               value: ValObjTree]]): ValObjTree =
+               value: ObjTree]]): ObjTree =
 
-  ValObjTree(styling: initPrintStyling(), kind: okComposed,
-             sectioned: false,
-             namedObject: true,
-             namedFields: true,
-             name: name,
-             fldPairs: toSeq(flds))
+  ObjTree(
+    styling: initPrintStyling(),
+    kind: okComposed,
+    namedObject: true,
+    namedFields: true,
+    name: name,
+    fldPairs: toSeq(flds)
+  )
 
-func pptObj*(name: string,
-             flds: varargs[ValObjTree]): ValObjTree =
-  result = ValObjTree(styling: initPrintStyling(), kind: okComposed,
-             sectioned: false,
-             namedObject: true,
-             namedFields: false,
-             name: name# ,
+func pptObj*(name: string, flds: varargs[ObjTree]): ObjTree =
+  result = ObjTree(
+    styling: initPrintStyling(),
+    kind: okComposed,
+    namedObject: true,
+    namedFields: false,
+    name: name# ,
              # fldPairs: flds.mapIt(("", it))
   )
 
@@ -54,7 +56,7 @@ type
 
 #==============================  Lisp repr  ==============================#
 
-func lispReprImpl*(tree: ValObjTree,
+func lispReprImpl*(tree: ObjTree,
                    params: TreeReprParams,
                    level: int): string =
 
@@ -75,32 +77,28 @@ func lispReprImpl*(tree: ValObjTree,
         mapPairs(fmt("(:{lhs} {rhs.lispReprImpl(params, level)})")).
         joinw().wrap("()")
     of okComposed:
-      case tree.sectioned:
-        of true:
-          raiseAssert("#[ IMPLEMENT ]#")
-        of false:
-          return tree.fldPairs.
-            mapPairs(
-              tree.namedFields.tern(&":{lhs} ", "") &
-              rhs.lispReprImpl(params, level + 1)).
-            joinw().
-            wrap do:
-              if tree.namedObject:
-                if tree.name.validIdentifier():
-                  (&"({tree.name} ", ")")
-                else:
-                  (&"(`{tree.name}` ", ")")
-              else:
-                (("(", ")"))
+      return tree.fldPairs.
+        mapPairs(
+          tree.namedFields.tern(&":{lhs} ", "") &
+          rhs.lispReprImpl(params, level + 1)).
+        joinw().
+        wrap do:
+          if tree.namedObject:
+            if tree.name.validIdentifier():
+              (&"({tree.name} ", ")")
+            else:
+              (&"(`{tree.name}` ", ")")
+          else:
+            (("(", ")"))
 
 
-func lispRepr*(tree: ValObjTree, maxlevel: int = 60): string =
+func lispRepr*(tree: ObjTree, maxlevel: int = 60): string =
   lispReprImpl(tree, TreeReprParams(
     maxDepth: maxlevel,
   ), level = 0)
 
 #==============================  Tree repr  ==============================#
-func treeReprImpl*(tree: ValObjTree,
+func treeReprImpl*(tree: ObjTree,
                    params: TreeReprParams,
                    pref: seq[bool],
                    parentMaxIdx, currIdx: int,
@@ -166,33 +164,29 @@ func treeReprImpl*(tree: ValObjTree,
            parentKind = rhs.kind
          )
     of okComposed:
-      if tree.sectioned:
-        raiseAssert("#[ IMPLEMENT ]#")
+      let
+        name = tree.name.validIdentifier.tern(
+          tree.name, tree.name.wrap("``"))
+
+      if pref.len + 1 > params.maxdepth:
+        result &= prefStr & name & " ... (" &
+          toPluralNoun("field", tree.fldPairs.len) & ")"
+        return
       else:
-        let
-          name = tree.name.validIdentifier.tern(
-            tree.name, tree.name.wrap("``"))
+        result &= prefStr & name & ":"
 
-        if pref.len + 1 > params.maxdepth:
-          result &= prefStr & name & " ... (" &
-            toPluralNoun("field", tree.fldPairs.len) & ")"
-          return
-        else:
-          result &= prefStr & name & ":"
+      result &= concat mapPairs(tree.fldPairs) do:
+        tree.namedFields.tern(@[prefStr & lhs], @[]) &
+        treeReprImpl(
+          rhs,
+          params,
+          pref & @[currIdx != parentMaxIdx],
+          parentMaxIdx = tree.fldPairs.len - 1,
+          currIdx = idx,
+          parentKind = tree.kind
+        )
 
-        result &= concat mapPairs(tree.fldPairs) do:
-          tree.namedFields.tern(@[prefStr & lhs], @[]) &
-          treeReprImpl(
-            rhs,
-            params,
-            pref & @[currIdx != parentMaxIdx],
-            parentMaxIdx = tree.fldPairs.len - 1,
-            currIdx = idx,
-            parentKind = tree.kind
-          )
-
-func treeRepr*(tree: ValObjTree,
-               maxlevel: int = 60): string =
+func treeRepr*(tree: ObjTree, maxlevel: int = 60): string =
   treeReprImpl(
     tree,
     TreeReprParams(

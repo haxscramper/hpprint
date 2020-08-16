@@ -265,7 +265,7 @@ suite "Colored printing":
         f1: seq[int]
         f2: seq[A]
 
-    var tree = toValObjTree(A(
+    var tree = toObjTree(A(
       f1: @[21],
       f2: @[
       A(f1: @[1,2,3,4,5,6]),
@@ -648,7 +648,7 @@ suite "Object diff":
     ppDiff(@[1,2,3,4], @[1,2,3])
 
   test "{annotate} set annotation for object":
-    var tree = toValObjTree(@[
+    var tree = toObjTree(@[
       @[2,3,43,4,5],
       @[2,3,43,4,5],
     ])

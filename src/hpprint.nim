@@ -72,50 +72,49 @@ proc dedicatedConvertMatcher*[Obj](
   ## converters
   return conv(val)
 
-proc prettyPrintConverter(val: JsonNode, path: seq[int] = @[0]): ValObjTree =
+proc prettyPrintConverter(val: JsonNode, path: seq[int] = @[0]): ObjTree =
   ## Dedicated pretty-print converter implementation for `JsonNode`
   case val.kind:
     of JNull:
-      return ValObjTree(
+      return ObjTree(
         constType: "nil", kind: okConstant,
         strLit: "null", styling: initPrintStyling())
     of JBool:
-      return ValObjTree(
+      return ObjTree(
         constType: "bool", kind: okConstant,
         strLit: $val.getBool(), styling: initPrintStyling())
     of JInt:
-      return ValObjTree(
+      return ObjTree(
         constType: "int", kind: okConstant,
         strLit: $val.getInt(), styling: initPrintStyling())
     of JFloat:
-      return ValObjTree(
+      return ObjTree(
         constType: "string", kind: okConstant,
         strLit: $val.getFloat(), styling: initPrintStyling())
     of JString:
-      return ValObjTree(
+      return ObjTree(
         constType: "string", kind: okConstant,
         strLit: &"\"{val.getStr()}\"", styling: initPrintStyling())
     of JArray:
-      return ValObjTree(
+      return ObjTree(
         kind: okSequence, styling: initPrintStyling(),
         valItems: val.getElems().mapPairs(
           prettyPrintConverter(rhs, path = path & @[idx])
         )
       )
     of JObject:
-      return ValObjTree(
+      return ObjTree(
         kind: okComposed,
         namedFields: true,
         namedObject: false,
-        sectioned: false,
         styling: initPrintStyling(),
         fldPairs: val.getFields().mapPairs((
           name: lhs,
           value: prettyPrintConverter(rhs, path = path & @[idx])
         )))
 
-proc prettyPrintConverter(val: seq[Rune], path: seq[int] = @[0]): ValObjTree =
-  ValObjTree(
+proc prettyPrintConverter(val: seq[Rune], path: seq[int] = @[0]): ObjTree =
+  ObjTree(
     styling: initPrintStyling(),
     kind: okConstant,
     constType: "seq[Rune]",
@@ -145,14 +144,8 @@ NOTE: values are not checked for primitivenes recursively. Instead
       (tree.valPairs.len < 5) and
       tree.valPairs.allOfIt(it.val.isPrimitive)
     of okComposed:
-      if tree.sectioned:
-        # NOTE IMPLEMENT objects with sectioned case fields are not
-        # currently supported.
-        tree.kindBlocks.len < 5 and
-        true
-      else:
-        (tree.fldPairs.len < 5) and
-        tree.fldPairs.allOfIt(it.value.isPrimitive)
+      (tree.fldPairs.len < 5) and
+      tree.fldPairs.allOfIt(it.value.isPrimitive)
 
 type
   IdCounter = object
@@ -166,7 +159,7 @@ proc toSimpleTree*[Obj](
   entry: Obj,
   idCounter: var IdCounter,
   conf: PPrintConf = PPrintConf(),
-  path: seq[int] = @[0]): ValObjTree =
+  path: seq[int] = @[0]): ObjTree =
   ## Top-level dispatch for pretty-printing
   ##
   ## Generic implementation for pretty-print conveter for types not
@@ -187,7 +180,7 @@ proc toSimpleTree*[Obj](
 
     # IMPLEMENT Insert values in sorted order to give the same layout
     # for unordered containers
-    result = ValObjTree(styling: initPrintStyling(),
+    result = ObjTree(styling: initPrintStyling(),
       kind: okTable,
       keyType: $typeof((pairs(entry).nthType1)),
       valType: $typeof((pairs(entry).nthType2)),
@@ -206,7 +199,7 @@ proc toSimpleTree*[Obj](
     (compiles(for i in items(entry): discard)) or
     (compiles(for i in items(entry[]): discard))
   ):
-    result = ValObjTree(styling: initPrintStyling(),
+    result = ObjTree(styling: initPrintStyling(),
       kind: okSequence,
       itemType: $typeof(items(unref entry)),
       objId: (entry is ref).tern(
@@ -232,27 +225,24 @@ proc toSimpleTree*[Obj](
       else:
         idCounter.next()
     when (entry is object) or (entry is ref object):
-      result = ValObjTree(styling: initPrintStyling(),
+      result = ObjTree(styling: initPrintStyling(),
         kind: okComposed,
         name: $typeof(Obj),
-        sectioned: false,
         namedObject: true,
         namedFields: true,
         objId: id
       )
     elif isNamedTuple(Obj):
-      result = ValObjTree(styling: initPrintStyling(),
+      result = ObjTree(styling: initPrintStyling(),
         kind: okComposed,
         name: $typeof(Obj),
-        sectioned: false,
         namedObject: false,
         namedFields: true,
         objId: id
       )
     else:
-      result = ValObjTree(styling: initPrintStyling(),
+      result = ObjTree(styling: initPrintStyling(),
         kind: okComposed,
-        sectioned: false,
         namedFields: false,
         namedObject: false,
         objId: id
@@ -262,7 +252,7 @@ proc toSimpleTree*[Obj](
 
     when (entry is ref object):
       if entry == nil:
-        result = ValObjTree(styling: initPrintStyling(),
+        result = ObjTree(styling: initPrintStyling(),
           kind: okConstant,
           constType: $(typeof(Obj)),
           strLit: "nil",
@@ -288,7 +278,7 @@ proc toSimpleTree*[Obj](
 
 
   elif (entry is proc):
-    result = ValObjTree(styling: initPrintStyling(),
+    result = ObjTree(styling: initPrintStyling(),
       kind: okConstant,
       constType: $(typeof(Obj)),
       strLit: $(typeof(Obj)),
@@ -307,7 +297,7 @@ proc toSimpleTree*[Obj](
     else:
       let val = $entry
 
-    result = ValObjTree(styling: initPrintStyling(),
+    result = ObjTree(styling: initPrintStyling(),
       kind: okConstant,
       constType: $typeof(Obj),
       strLit: val,
@@ -502,7 +492,7 @@ proc getWrapperConf(current: ObjTree, conf: PPrintConf): tuple[start, final: Del
 
 
 proc getLabelConfiguration(
-  conf: PPrintConf, current: ValObjTree, ident: int): tuple[
+  conf: PPrintConf, current: ObjTree, ident: int): tuple[
   item, blocks: ChunkLabels,
   widthconf: (int, int)] =
   ## Get label configuration
@@ -578,7 +568,7 @@ proc getLabelConfiguration(
 
 proc arrangeKVPairs(
   input: seq[KVPair],
-  conf: PPrintConf, current: ValObjTree, ident: int): Chunk =
+  conf: PPrintConf, current: ObjTree, ident: int): Chunk =
   ## Layout sequence of key-value pairs. `name` field in tuple items
   ## might be empty if `current.kind` is `okSequence`.
   # if current.annotation.len > 0:
@@ -661,23 +651,22 @@ proc pstringRecursive(
       # echo "cl: ", clines
       result = makeChunk(content = clines)
     of okComposed:
-      if not current.sectioned:
-        let maxFld = current.fldPairs.mapIt(
-          it.name.termLen() + conf.fldNameWrapper.start.content.len() +
-          conf.fldNameWrapper.start.content.len()
-        ).max()
+      let maxFld = current.fldPairs.mapIt(
+        it.name.termLen() + conf.fldNameWrapper.start.content.len() +
+        conf.fldNameWrapper.start.content.len()
+      ).max()
 
-        var tmp: seq[KVPair]
-        for it in current.fldPairs:
-          # echo it.value
-          tmp.add kvPair(
-            conf.fldNameWrapper.start.content & it.name &
-              conf.fldNameWrapper.final.content,
-            pstringRecursive(it.value, conf, maxFld + ident),
-            it.value.annotation
-          )
+      var tmp: seq[KVPair]
+      for it in current.fldPairs:
+        # echo it.value
+        tmp.add kvPair(
+          conf.fldNameWrapper.start.content & it.name &
+            conf.fldNameWrapper.final.content,
+          pstringRecursive(it.value, conf, maxFld + ident),
+          it.value.annotation
+        )
 
-        result = tmp.arrangeKVPairs(conf, current, ident + maxFld)
+      result = tmp.arrangeKVPairs(conf, current, ident + maxFld)
     of okTable:
       let maxFld = current.valPairs.mapIt(it.key.termLen()).max(0)
       result = current.valPairs.mapIt(
@@ -731,11 +720,7 @@ func getSubnodes*(it: ObjTree): seq[ObjTree] =
     of okConstant: raiseAssert("No sub for `okConstant`")
     of okSequence: it.valItems
     of okTable: it.valPairs.mapIt(it.val)
-    of okComposed:
-      case it.sectioned:
-        of false: it.fldPairs.mapIt(it.value)
-        of true: raiseAssert(
-          "IMPLEMENT Sectioned objects are not supported RN")
+    of okComposed: it.fldPairs.mapIt(it.value)
 
 
 func makeCounter*(): IdCounter = IdCounter()
@@ -746,19 +731,19 @@ proc pstring*[Obj](obj: Obj, ident: int = 0, maxWidth: int = 80): string =
   prettyString(toSimpleTree(obj, counter), conf, ident)
 
 
-proc pstring*(obj: ValObjTree, ident: int = 0, maxWidth: int = 80): string =
+proc pstring*(obj: ObjTree, ident: int = 0, maxWidth: int = 80): string =
   var conf = objectPPrintConf
   conf.maxWidth = maxWidth
   prettyString(obj, conf, ident)
 
-proc pprint*[Node](tree: ObjTree[Node], maxw: int = 80): void =
+proc pprint*(tree: ObjTree, maxw: int = 80): void =
   # FIXME `maxw` does not work correctly
   var conf = objectPPrintConf
   conf.maxWidth = maxw
   echo prettyString(tree, conf)
 
 
-proc toValObjTree*[Obj](obj: Obj): ValObjTree =
+proc toObjTree*[Obj](obj: Obj): ObjTree =
   var counter = makeCounter()
   toSimpleTree(obj, counter)
 

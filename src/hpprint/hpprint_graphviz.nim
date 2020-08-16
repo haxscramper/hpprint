@@ -52,12 +52,12 @@ type
   ObjCell[Conf] = GridCell[ObjElem[Conf]]
   ObjRow[Conf] = BlockGridRow[ObjElem[Conf]]
   ConfGenProc[Conf] = proc(
-    obj: ValObjTree,
+    obj: ObjTree,
     config: GridConvConfig,
     stage: GridConvStage): Conf
 
 func toCells*[Conf](
-  obj: ValObjTree,
+  obj: ObjTree,
   makeConf: ConfGenProc[Conf]): tuple[ctype, value: ObjCell[Conf]] =
   ## Convert constant to row
   assert obj.kind == okConstant
@@ -80,11 +80,11 @@ func toCells*[Conf](
     )),
   )
 
-proc toGrid*[Conf](obj: ValObjTree, makeConf: ConfGenProc[Conf]): tuple[
+proc toGrid*[Conf](obj: ObjTree, makeConf: ConfGenProc[Conf]): tuple[
   grid: BlockGrid[ObjElem[Conf]],
   edges: seq[tuple[
     pholder: ObjElem[Conf],
-    ejected: ValObjTree
+    ejected: ObjTree
   ]]] =
   ## Convert object tree into grid. Return resulting grid and all
   ## 'ejected' subtrees.
@@ -128,7 +128,7 @@ proc toGrid*[Conf](obj: ValObjTree, makeConf: ConfGenProc[Conf]): tuple[
 
 
 proc makeTermGridConf(
-  obj: ValObjTree,
+  obj: ObjTree,
   config: GridConvConfig,
   stage: GridConvStage): TermTextConf =
   discard

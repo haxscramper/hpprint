@@ -93,8 +93,7 @@ FIXME cannot deal with `Type = HashTable[...]`
 
 #========================  diff pretty-printing  =========================#
 
-func getAtPath*[Node](tree: ObjTree[Node],
-                      path: TreePath): (ObjTree[Node], seq[ObjAccessor]) =
+func getAtPath*(tree: ObjTree, path: TreePath): (ObjTree, seq[ObjAccessor]) =
   case tree.kind:
     of okComposed:
       if path.len <= 1:
@@ -123,8 +122,7 @@ func getAtPath*[Node](tree: ObjTree[Node],
       ])
 
 
-func mgetAtPath*[Node](tree: var ObjTree[Node],
-                       path: TreePath): var ObjTree[Node] =
+func mgetAtPath*(tree: var ObjTree, path: TreePath): var ObjTree =
   case tree.kind:
     of okComposed:
       if path.len <= 1:
@@ -164,8 +162,8 @@ proc ppDiff*[T](lhs, rhs: T,
     return
 
   var
-    lhsObjTree = toValObjTree(lhs)
-    rhsObjTree = toValObjTree(rhs)
+    lhsObjTree = toObjTree(lhs)
+    rhsObjTree = toObjTree(rhs)
 
   for path in diffpaths.paths():
     let (lhsTree, lhsNamePath) = getAtPath(lhsObjTree, path)
