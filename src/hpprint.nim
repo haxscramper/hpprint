@@ -12,8 +12,8 @@
 import hmisc/types/[hnim_ast, hprimitives, colorstring]
 import hmisc/helpers
 
-import strformat, tables, strutils, sequtils, unicode
-import with, gara # TODO remove gara from dependencies
+import strformat, tables, strutils, sequtils, unicode, typetraits
+import with
 
 
 #==========================  type declaration  ===========================#
@@ -416,18 +416,18 @@ proc relativePosition*(
 
   for pos, label in labels:
     with label:
-      match(pos): # XXX remove `match`, use `case`
-        rpBottomRight:
+      case pos:
+        of rpBottomRight:
           rightPad = text.termLen
-        rpTopLeftAbove:
+        of rpTopLeftAbove:
           topPad = 1
           leftPad = max(offset, leftPad)
-        rpTopLeftLeft:
+        of rpTopLeftLeft:
           leftPad = max(leftPad, text.termLen)
-        rpBottomLeft:
+        of rpBottomLeft:
           bottomPad = 1
           leftPad = max(leftPad, offset)
-        rpPrefix:
+        of rpPrefix:
           leftPad = text.termLen
 
   let resWidth = chunk.maxWidth + leftPad + rightPad
@@ -507,59 +507,67 @@ proc getLabelConfiguration(
   var blockLabels: ChunkLabels
   let offset = conf.identStr.termLen # Internal offset between prefix
                                      # delimiter and chunk body
-  let prefixOverride = (current.kind == okSequence) and (conf.seqPrefix.termLen > 0)
-  match((prefixOverride, wrapBeg.preferMultiline, wrapEnd.preferMultiline)):
-    (true, _, _):
-      subIdent = conf.seqPrefix.termLen
-      maxWidth = conf.maxWidth
-      itemLabels[rpTopLeftLeft] = (text: conf.seqPrefix, offset: 0)
-    (_, true, true):
-      # (prefix delimiter)
-      # <field> [ block block
-      #           block block ]
-      # (suffix delimiter)
-      subIdent = ident
-      maxWidth = conf.maxWidth
-      itemLabels[rpTopLeftAbove] = (text: wrapBeg.content, offset: offset)
-      itemLabels[rpBottomLeft] = (text: wrapEnd.content, offset: offset)
-    (_, true, false):
-      # (prefix delimiter)
-      # <field> [ block block
-      #           block block ] (suffix delimiter)
-      subIdent = ident
-      maxWidth = conf.maxWidth - wrapEnd.content.len()
-      itemLabels[rpTopLeftAbove] = (text: wrapBeg.content, offset: offset)
-      itemLabels[rpBottomRight] = (text: wrapEnd.content, offset: 0)
-    (_, false, true):
-      # (prefix delimiter) <field> [ block block
-      #                              block block ]
-      # (suffix delimiter)
-      subIdent = ident + wrapBeg.content.len()
-      # IMPLEMENT account for sequence prefix, kvSeparator etc.
-      maxWidth = conf.maxWidth
-      itemLabels[rpTopLeftLeft] = (text: wrapBeg.content, offset: 0)
-      itemLabels[rpBottomLeft] = (text: wrapEnd.content, offset: 0)
-    (_, false, false):
-      # (prefix delimiter) <field> [ block block
-      #                              block block ] (suffix delimiter)
-      subIdent = ident + wrapBeg.content.len()
-      maxWidth = conf.maxWidth - wrapEnd.content.len()
-      case current.kind:
-        of okSequence:
-          itemLabels[rpBottomRight] = (text: conf.seqSeparator, offset: 0)
+  let prefixOverride = (current.kind == okSequence) and
+    (conf.seqPrefix.termLen > 0)
+
+  # match((prefixOverride, wrapBeg.preferMultiline, wrapEnd.preferMultiline)):
+  if prefixOverride:
+  # (true, _, _):
+    subIdent = conf.seqPrefix.termLen
+    maxWidth = conf.maxWidth
+    itemLabels[rpTopLeftLeft] = (text: conf.seqPrefix, offset: 0)
+  elif wrapBeg.preferMultiline and wrapEnd.preferMultiline:
+  # (_, true, true):
+    # (prefix delimiter)
+    # <field> [ block block
+    #           block block ]
+    # (suffix delimiter)
+    subIdent = ident
+    maxWidth = conf.maxWidth
+    itemLabels[rpTopLeftAbove] = (text: wrapBeg.content, offset: offset)
+    itemLabels[rpBottomLeft] = (text: wrapEnd.content, offset: offset)
+
+  elif wrapBeg.preferMultiline and (not wrapEnd.preferMultiline):
+  # (_, true, false):
+    # (prefix delimiter)
+    # <field> [ block block
+    #           block block ] (suffix delimiter)
+    subIdent = ident
+    maxWidth = conf.maxWidth - wrapEnd.content.len()
+    itemLabels[rpTopLeftAbove] = (text: wrapBeg.content, offset: offset)
+    itemLabels[rpBottomRight] = (text: wrapEnd.content, offset: 0)
+  elif (not wrapBeg.preferMultiline) and wrapEnd.preferMultiline:
+  # (_, false, true):
+    # (prefix delimiter) <field> [ block block
+    #                              block block ]
+    # (suffix delimiter)
+    subIdent = ident + wrapBeg.content.len()
+    # IMPLEMENT account for sequence prefix, kvSeparator etc.
+    maxWidth = conf.maxWidth
+    itemLabels[rpTopLeftLeft] = (text: wrapBeg.content, offset: 0)
+    itemLabels[rpBottomLeft] = (text: wrapEnd.content, offset: 0)
+  elif (not wrapBeg.preferMultiline) and (not wrapEnd.preferMultiline):
+  # (_, false, false):
+    # (prefix delimiter) <field> [ block block
+    #                              block block ] (suffix delimiter)
+    subIdent = ident + wrapBeg.content.len()
+    maxWidth = conf.maxWidth - wrapEnd.content.len()
+    case current.kind:
+      of okSequence:
+        itemLabels[rpBottomRight] = (text: conf.seqSeparator, offset: 0)
+        blockLabels[rpTopLeftAbove] = (text: wrapBeg.content, offset: 2)
+        blockLabels[rpBottomLeft] = (text: wrapEnd.content, offset: 2)
+      of {okTable, okComposed}:
+        itemLabels[rpBottomRight] = (text: conf.fldSeparator, offset: 0)
+        # TODO more fine-grained configuration for different
+        # wrapping settings.
+        if not conf.nowrapMultiline:
           blockLabels[rpTopLeftAbove] = (text: wrapBeg.content, offset: 2)
           blockLabels[rpBottomLeft] = (text: wrapEnd.content, offset: 2)
-        of {okTable, okComposed}:
-          itemLabels[rpBottomRight] = (text: conf.fldSeparator, offset: 0)
-          # TODO more fine-grained configuration for different
-          # wrapping settings.
-          if not conf.nowrapMultiline:
-            blockLabels[rpTopLeftAbove] = (text: wrapBeg.content, offset: 2)
-            blockLabels[rpBottomLeft] = (text: wrapEnd.content, offset: 2)
-          elif current.kind == okComposed and current.namedObject:
-            blockLabels[rpTopLeftAbove] = (text: current.name, offset: 2)
-        else:
-          discard
+        elif current.kind == okComposed and current.namedObject:
+          blockLabels[rpTopLeftAbove] = (text: current.name, offset: 2)
+      else:
+        discard
 
   return (
     item: itemLabels,

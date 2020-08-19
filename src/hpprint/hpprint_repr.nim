@@ -172,6 +172,17 @@ func treeReprImpl*(tree: ObjTree,
         result &= prefStr & name & " ... (" &
           toPluralNoun("field", tree.fldPairs.len) & ")"
         return
+      elif #[ FIXME ]# false and
+        (tree.fldPairs.len == 1) and
+        (tree.fldPairs[0].value.kind == okConstant):
+        let fld = tree.fldPairs[0]
+        if fld.value.kind == okConstant:
+          if tree.namedFields:
+            result &= &" {fld.name} {fld.value}" # TODO handle multiline
+          else:
+            result &= &" {fld.value}" # TODO handle multiline
+
+          return
       else:
         result &= prefStr & name & ":"
 
