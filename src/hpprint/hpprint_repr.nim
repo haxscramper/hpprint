@@ -80,7 +80,7 @@ func lispReprImpl*(tree: ObjTree,
         mapPairs(fmt("(:{lhs} {rhs.lispReprImpl(params, level)})")).
         join(sep).wrap("()")
     of okComposed:
-      return (sep & tree.fldPairs.
+      return (params.newlines.tern(sep, "") & tree.fldPairs.
         mapPairs(
           prefix & tree.namedFields.tern(&":{lhs} ", "") &
           rhs.lispReprImpl(params, level + 1)).

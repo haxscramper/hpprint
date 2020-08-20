@@ -1,7 +1,7 @@
 import hmisc/types/[htrie, hnim_ast, colorstring]
 import ../hpprint
 import hmisc/macros/obj_field_macros
-import terminal, tables, shell
+import terminal, tables, shell, sequtils
 
 #===========================  type definition  ===========================#
 
@@ -61,7 +61,7 @@ FIXME cannot deal with `Type = HashTable[...]`
     for idx, (lval, rval) in zip(lhsIn, rhsIn):
       result.merge diff(lval, rval, path & @[idx])
   elif (T is Table): # TODO implement table diffing
-    static: echo typeof T
+    # static: echo typeof T
     let
       lhsPairs = lhsIn.mapPairs(($lhs, rhs)).withResIt:
         it.sortedByIt(it[0])
@@ -87,7 +87,7 @@ FIXME cannot deal with `Type = HashTable[...]`
 
   #     inc idx
   else:
-    static: echo typeof(T)
+    # static: echo typeof(T)
     if lhsIn != rhsIn:
       result[path] = ObjDiff(kind: odkValue)
 
@@ -154,7 +154,8 @@ func toStr*(accs: seq[ObjAccessor]): string =
 
 proc ppDiff*[T](lhs, rhs: T,
                 printFull: bool = false,
-                die: bool = false): void =
+                die: bool = false,
+                maxWidth: int = 80): void =
   ## Pretty-print difference between two objects
   # TODO print items side-by-side if possible
   let diffpaths = diff(lhs, rhs)
@@ -190,7 +191,11 @@ proc ppDiff*[T](lhs, rhs: T,
             " # Value mismatch".toYellow({styleItalic}))
         lhsObjTree.mgetAtPath(path).styling.fg = fgGreen
 
-  pprint lhsObjTree
+  when defined(plainStdout):
+    let str = pstring(lhsObjTree, maxWidth = maxWidth)
+    echo str.stripSGR()
+  else:
+    pprint lhsObjTree, maxWidth = maxWidth
   if die and diffpaths.paths().len > 0:
     raiseAssert("Difference between objects")
 

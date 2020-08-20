@@ -129,6 +129,7 @@ import hpprint/objdiff, tables
 
 type
   U = object
+    f0: int
     case kind: bool
       of true:
         f1: char
@@ -136,13 +137,29 @@ type
         f2: string
 
 ppDiff(
-  U(kind: true, f1: '9'),
-  U(kind: false, f2: "hello")
+  U(kind: true, f1: '9', f0: 12),
+  U(kind: false, f2: "hello", f0: 22),
+  maxWidth = 10
 )
 
 #+end_src
 
 #+RESULTS:
-: char
-: string
-: [32mU(kind: true, f1: 9) [31mU(kind: false, f2: "hello")[39m[3m[33m # Value mismatch[39m[23m[39m
+: U
+:   f0:   12 22 # Value mismatch
+:   kind: true
+:   f1:   9
+
+* Contribution & development
+
+Most of the implementation problems are already solved. There are of
+course lots of edge cases that has to be tested. ~ppDiff~ currently
+compares object values (and fields), iterates over them using
+[[https://haxscramper.github.io/hmisc-doc/src/hmisc/macros/obj_field_macros.html#parallelFieldPairs.m%2Ctyped%2Ctyped%2Cuntyped][parallelFieldPairs]] to iterate case objects in parallel.
+
+Object diff fails to pretty-print things like ~Alias = Table[V, F]~
+when defined in other module, and generally not good with tables right
+now.
+
+If you have any additional questions feel free to join my [[https://discord.gg/ZnBB4E][discord
+server]] and ask questions there.
