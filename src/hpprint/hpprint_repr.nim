@@ -53,6 +53,7 @@ type
   TreeReprParams* = object
     maxDepth: int
     outWidth: int
+    newlines: bool
 
 #==============================  Lisp repr  ==============================#
 
@@ -63,6 +64,8 @@ func lispReprImpl*(tree: ObjTree,
   if level >= params.maxDepth:
     return "..."
 
+  let sep = params.newlines.tern("\n", " ")
+  let prefix = params.newlines.tern("  ".repeat(level + 1), "")
   case tree.kind:
     of okConstant:
       return tree.strLit
@@ -75,13 +78,13 @@ func lispReprImpl*(tree: ObjTree,
     of okTable:
       return tree.valPairs.
         mapPairs(fmt("(:{lhs} {rhs.lispReprImpl(params, level)})")).
-        joinw().wrap("()")
+        join(sep).wrap("()")
     of okComposed:
-      return tree.fldPairs.
+      return (sep & tree.fldPairs.
         mapPairs(
-          tree.namedFields.tern(&":{lhs} ", "") &
+          prefix & tree.namedFields.tern(&":{lhs} ", "") &
           rhs.lispReprImpl(params, level + 1)).
-        joinw().
+        join(sep)).
         wrap do:
           if tree.namedObject:
             if tree.name.validIdentifier():
@@ -92,9 +95,11 @@ func lispReprImpl*(tree: ObjTree,
             (("(", ")"))
 
 
-func lispRepr*(tree: ObjTree, maxlevel: int = 60): string =
+func lispRepr*(
+  tree: ObjTree, maxlevel: int = 60, newlines: bool = false): string =
   lispReprImpl(tree, TreeReprParams(
     maxDepth: maxlevel,
+    newlines: newlines
   ), level = 0)
 
 #==============================  Tree repr  ==============================#

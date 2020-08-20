@@ -1,41 +1,148 @@
 #+title: readme
+#+property: header-args:nim+ :flags -d:plainStdout --cc:tcc --hints:off
+#+property: header-args:nim+ :import hpprint/doc_example
 
-Generic configurable pretty-printer.
+Generic configurable pretty-printer with partial auto-layout.
+Correctly handles unicode text and ANSI escape codes in text.
 
-#+begin_src nim
-  import hpprint
+Supports style configuration and user-defined pretty-print converters.
+
+* Pretty-printing
+
+Supports regular pretty-printing with auto-layout, tree representation
+simiar to yang tree diagrams [[https://tools.ietf.org/html/rfc8340][RFC 8340]] and lisp output.
+
+#+begin_src nim :exports both
+  echo "Different layouts for nested sequences"
+  pprintSizes(@[@[1,2,], @[3,4]], @[2, 10, 20])
 
   type
-    Test = object
-      f1: int
-      f2: float
-      f3: string
-      f4: seq[string]
+    UserType = object
+      field1: seq[int]
+      field2: string
+      subnodes: seq[UserType]
 
-  pprint Test(f4: @[
-    "String one",
-    "string two",
-    "String three",
-    "String with\nnewline separator",
-    "String with\nnewline separator",
-    "String with\nnewline separator"
-  ])
+  echo "Automatic support for user-defined types"
+  pprintTrees(UserType(
+    field1: @[1,2,3],
+    field2: "hello",
+    subnodes: @[
+      UserType(field1: @[2,8,3,4,54])
+    ]
+  ))
 #+end_src
 
 #+RESULTS:
 #+begin_example
-Test
-  f1: 0
-  f2: 0.0
-  f3: ""
-  f4:
-    - "String one"
-    - "string two"
-    - "String three"
-    - "String with
-      newline separator"
-    - "String with
-      newline separator"
-    - "String with
-      newline separator"
+Different layouts for nested sequences
+input: @[@[1, 2], @[3, 4]]
+
+ max: 2  max: 10   max: 20
+ ------- --------- -----------------
+ - - 1   - [1, 2]  [[1, 2], [3, 4]]
+   - 2   - [3, 4]
+ - - 3
+   - 4
+
+Automatic support for user-defined types
+
+ obj tree               tree repr               lisp repr
+ ---------------------- ----------------------- ----------------------------
+ UserType               UserType:               (UserType
+   field1:   [1, 2, 3]  field1                    :field1 '(1 2 3)
+   field2:   "hello"        |   +-- 1             :field2 "hello"
+   subnodes:                |   +-- 2             :subnodes '((UserType
+     - UserType             |   +-- 3                 :field1 '(2 8 3 4 54)
+         field1:        field2                        :field2 ""
+           - 2              +-> "hello"               :subnodes '())))
+           - 8          subnodes
+           - 3                  +-- UserType:
+           - 4                  +-- field1
+           - 54                     |   +-- 2
+         field2:   ""               |   +-- 8
+                                    |   +-- 3
+                                    |   +-- 4
+                                    |   +-- 54
+                                +-- field2
+                                    +-> ""
+                                +-- subnodes
+
 #+end_example
+
+Pretty-printing is perfomed by converting into internal
+representation. Output appearance is configurable via ~PPrintConf~.
+JSON pretty-printing is possible too, without messing up syntax or
+value of generated objects (can print and parse again without
+errors/changes in values).
+
+#+begin_src nim :exports results
+  type
+    UserType = object
+      field1: seq[int]
+      field2: string
+      subnodes: seq[UserType]
+
+  let val = UserType(
+    field1: @[1,2,3],
+    field2: "hello",
+    subnodes: @[
+      UserType(field1: @[2,8,3,4,54])
+    ]
+  )
+
+  pprintConfigs(val)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+
+ Regular output         Json-like output          LISP-like output
+ ---------------------- ------------------------- ----------------------------
+ UserType               UserType{                 UserType(
+   field1:   [1, 2, 3]      "field1": [1, 2, 3],      field1: '(123)
+   field2:   "hello"        "field2": "hello",        field2: "hello"
+   subnodes:              "subnodes":               subnodes:
+     - UserType             [                         '(
+         field1:              UserType{                 UserType(
+           - 2                    "field1":                 field1: '(283454)
+           - 8                    [                         field2: ""
+           - 3                      2,                    subnodes: '()
+           - 4                      8,                  )
+           - 54                     3,                )
+         field2:   ""               4,            )
+         subnodes: []               54
+                                  ],
+                                  "field2": "",
+                                "subnodes": []
+                              }
+                            ]
+                        }
+
+#+end_example
+
+* Object diffing
+
+Compare two objects and pretty-print difference between them.
+
+#+begin_src nim :exports both
+import hpprint/objdiff, tables
+
+type
+  U = object
+    case kind: bool
+      of true:
+        f1: char
+      of false:
+        f2: string
+
+ppDiff(
+  U(kind: true, f1: '9'),
+  U(kind: false, f2: "hello")
+)
+
+#+end_src
+
+#+RESULTS:
+: char
+: string
+: [32mU(kind: true, f1: 9) [31mU(kind: false, f2: "hello")[39m[3m[33m # Value mismatch[39m[23m[39m

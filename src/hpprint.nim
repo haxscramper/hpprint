@@ -652,6 +652,7 @@ proc arrangeKVPairs(
 
 proc pstringRecursive(
   current: ObjTree, conf: PPrintCOnf, ident: int = 0): Chunk =
+  # debugecho conf.maxWidth
 
   case current.kind:
     of okConstant:
@@ -741,6 +742,10 @@ proc pstring*[Obj](obj: Obj, ident: int = 0, maxWidth: int = 80): string =
   conf.maxWidth = maxWidth
   prettyString(toSimpleTree(obj, counter), conf, ident)
 
+
+proc pstring*[Obj](obj: Obj, conf: PPrintConf): string =
+  var counter = makeCounter()
+  prettyString(toSimpleTree(obj, counter), conf, 0)
 
 proc pstring*(obj: ObjTree, ident: int = 0, maxWidth: int = 80): string =
   var conf = objectPPrintConf
