@@ -152,6 +152,12 @@ ppDiff(
 
 * Contribution & development
 
+- [ ] html representation (with interactive object close/open, like
+  juggested in this [[https://github.com/nim-lang/RFCs/issues/203#issuecomment-602534906][comment]])
+- [ ] grapvhiz representation (partially implemented)
+- [ ] more styling information for object parts. Different styling for
+  string and integer literals etc.
+
 Most of the implementation problems are already solved. There are of
 course lots of edge cases that has to be tested. ~ppDiff~ currently
 compares object values (and fields), iterates over them using
@@ -161,5 +167,5 @@ Object diff fails to pretty-print things like ~Alias = Table[V, F]~
 when defined in other module, and generally not good with tables right
 now.
 
-If you have any additional questions feel free to join my [[https://discord.gg/ZnBB4E][discord
+If you have any additional questions feel free to join my [[https://discord.gg/hjfYJCU][discord
 server]] and ask questions there.
