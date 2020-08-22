@@ -12,7 +12,7 @@
 import hmisc/types/[hnim_ast, hprimitives, colorstring]
 import hmisc/helpers
 
-import strformat, tables, strutils, sequtils, unicode, typetraits
+import strformat, tables, strutils, sequtils, unicode, typetraits, macros
 import with
 
 
@@ -121,6 +121,16 @@ proc prettyPrintConverter(val: seq[Rune], path: seq[int] = @[0]): ObjTree =
     strLit: &"\"{val}\""
   )
 
+proc prettyPrintConverter(val: NimNode, path: seq[int] = @[0]): ObjTree =
+  # TODO can add syntax hightlight to string literal generated from
+  #      nim node
+  ObjTree(
+    styling: initPrintStyling(),
+    kind: okConstant,
+    constType: "NimNode",
+    strLit: val.toStrLit().strVal()
+  )
+
 template unref(val: untyped): untyped =
   when val is ref: val[]
   else: val
@@ -171,7 +181,7 @@ proc toSimpleTree*[Obj](
   when compiles(prettyPrintConverter(entry, path = path)):
     # If dedicated implementation exists, use it
     return prettyPrintConverter(entry, path = path)
-  elif not (
+  elif not ( # key-value pairs (tables etc.)
       (entry is seq) or
       (entry is array) or
       (entry is openarray) or
@@ -196,12 +206,13 @@ proc toSimpleTree*[Obj](
     result.valPairs.sort do (x, y: auto) -> int:
       cmp(x[0], y[0])
 
-  elif not (
+  elif not ( # sequences but not strings
       (entry is string)
     ) and (
     (compiles(for i in items(entry): discard)) or
     (compiles(for i in items(entry[]): discard))
   ):
+    # echo typeof entry
     result = ObjTree(styling: initPrintStyling(),
       kind: okSequence,
       itemType: $typeof(items(unref entry)),
@@ -219,7 +230,7 @@ proc toSimpleTree*[Obj](
       ))
       inc idx
 
-  elif (entry is object) or
+  elif (entry is object) or # objects
        (entry is ref object) or
        (entry is tuple):
     let id: int =
@@ -280,7 +291,7 @@ proc toSimpleTree*[Obj](
         inc idx
 
 
-  elif (entry is proc):
+  elif (entry is proc): # proc type
     result = ObjTree(styling: initPrintStyling(),
       kind: okConstant,
       constType: $(typeof(Obj)),
@@ -288,7 +299,7 @@ proc toSimpleTree*[Obj](
       path: path,
       objId: idCounter.next()
     )
-  else:
+  else: # everything else
     when entry is string:
       let val = "\"" & entry & "\""
     elif entry is pointer:
@@ -297,6 +308,8 @@ proc toSimpleTree*[Obj](
       let val = "<void>"
     elif entry is Rune:
       let val = "\'" & $(@[entry]) & "\'"
+    elif entry is NimNode:
+      let val = entry.treeRepr()
     else:
       let val = $entry
 
