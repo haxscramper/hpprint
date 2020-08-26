@@ -7,10 +7,10 @@ import strutils
 import hasts/[graphviz_ast, html_ast]
 import hdrawing, hdrawing/block_grid
 
-import hmisc/macros/[obj_field_macros]
+import hnimast, hnimast/obj_field_macros
 import ../src/hpprint
 import ../src/hpprint/[hpprint_graphviz, hpprint_repr]
-import hmisc/types/[seq2d, htrie, hnim_ast, colorstring]
+import hmisc/types/[seq2d, htrie, colorstring]
 
 converter toSeq2D*[T](s: seq[seq[T]]): Seq2d[T] =
   makeSeq2D(s)

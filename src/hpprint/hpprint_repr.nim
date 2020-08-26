@@ -1,5 +1,6 @@
 import strutils, sequtils, strformat, sugar
-import hmisc/types/[hnim_ast, colorstring]
+import hmisc/types/colorstring
+import hnimast
 import hmisc/algo/[halgorithm, hseq_mapping, clformat]
 
 func pptConst*(

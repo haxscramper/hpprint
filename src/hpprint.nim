@@ -9,7 +9,8 @@
 
 ## Universal pretty-printer
 
-import hmisc/types/[hnim_ast, hprimitives, colorstring]
+import hnimast
+import hmisc/types/[hprimitives, colorstring]
 import hmisc/helpers
 
 import strformat, tables, strutils, sequtils, unicode, typetraits, macros

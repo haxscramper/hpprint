@@ -3,11 +3,8 @@ import hdrawing, hdrawing/[term_buf, block_grid]
 
 import hmisc/algo/htree_mapping
 import hmisc/helpers
-import hmisc/types/[
-  hnim_ast,
-  seq2d,
-  hvariant,
-]
+import hnimast
+import hmisc/types/[seq2d, hvariant]
 
 export hvariant
 import ../hpprint

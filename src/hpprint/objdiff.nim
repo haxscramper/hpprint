@@ -1,6 +1,6 @@
-import hmisc/types/[htrie, hnim_ast, colorstring]
+import hmisc/types/[htrie, colorstring]
+import hnimast, hnimast/obj_field_macros
 import ../hpprint
-import hmisc/macros/obj_field_macros
 import terminal, tables, shell, sequtils
 
 #===========================  type definition  ===========================#
