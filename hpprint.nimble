@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.2.3"
+version       = "0.2.4"
 author        = "haxscramper"
 description   = "Pretty-printer"
 license       = "Apache-2.0"

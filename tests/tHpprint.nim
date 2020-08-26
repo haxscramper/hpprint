@@ -455,8 +455,24 @@ suite "Repr pprint":
                   pptConst("12"),
                   pptConst("12")))
 
-    discard obj.treeRepr(maxlevel = 1)
-    discard obj.treeRepr()
+    echo obj.treeRepr(maxlevel = 1)
+    echo obj.treeRepr()
+
+  test "Colored tree repr":
+    echo pptConst("hello", initPrintStyling(fg = fgRed)).treeRepr()
+    echo pptSeq(
+      pptConst("eowlr", initPrintStyling(fg = fgRed)),
+      pptConst("eowlr", initPrintStyling(style = {styleUnderscore})),
+    ).treeRepr()
+
+    echo pptObj(
+      "eeee",
+      initPrintStyling(fg = fgYellow),
+      {
+        "fld1" : pptConst("3333", initPrintStyling(fg = fgGreen)),
+        "flde" : pptConst("3333", initPrintStyling(fg = fgBlue))
+      }
+    ).treeRepr()
 
 suite "Large object printout":
   test "Large JSON as treeRepr":

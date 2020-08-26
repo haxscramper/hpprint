@@ -2,32 +2,58 @@ import strutils, sequtils, strformat, sugar
 import hmisc/types/[hnim_ast, colorstring]
 import hmisc/algo/[halgorithm, hseq_mapping, clformat]
 
-func pptConst*(val: string): ObjTree =
-  ObjTree(styling: initPrintStyling(), kind: okConstant, strlit: val)
+func pptConst*(
+  val: string, styling: PrintStyling = initPrintStyling()): ObjTree =
+  ObjTree(styling: styling, kind: okConstant, strlit: val)
 
 func pptSeq*(vals: varargs[ObjTree]): ObjTree =
-  ObjTree(styling: initPrintStyling(), kind: okSequence, valItems: toSeq(vals))
+  ObjTree(styling: initPrintStyling(),
+          kind: okSequence, valItems: toSeq(vals))
 
-func pptSeq*(valType: string, vals: varargs[ObjTree]): ObjTree =
-  ObjTree(styling: initPrintStyling(), kind: okSequence, valItems: toSeq(vals), itemType: valType)
+func pptSeq*(styling: PrintStyling = initPrintStyling(),
+             vals: varargs[ObjTree]): ObjTree =
+  ObjTree(styling: styling,
+          kind: okSequence, valItems: toSeq(vals))
+
+func pptSeq*(valType: string,
+             vals: varargs[ObjTree]): ObjTree =
+  ObjTree(styling: initPrintStyling(),
+          kind: okSequence, valItems: toSeq(vals), itemType: valType)
+
+
+func pptSeq*(valType: string,
+             styling: PrintStyling,
+             vals: varargs[ObjTree]): ObjTree =
+  ObjTree(styling: styling,
+          kind: okSequence, valItems: toSeq(vals), itemType: valType)
+
 
 func pptMap*(kvTypes: (string, string),
+             styling: PrintStyling,
              vals: varargs[tuple[
                key: string,
                val: ObjTree]]): ObjTree =
+  ObjTree(
+    styling: styling,
+    kind: okTable,
+    keyType: kvTypes[0],
+    valType: kvTypes[1],
+    valPairs: toSeq(vals)
+  )
 
-  ObjTree(styling: initPrintStyling(), kind: okTable,
-             keyType: kvTypes[0],
-             valType: kvTypes[1],
-             valPairs: toSeq(vals))
+
+func pptMap*(kvTypes: (string, string),
+             vals: varargs[tuple[key: string, val: ObjTree]]): ObjTree =
+  pptMap(kvTypes, initPrintStyling(), vals)
 
 func pptObj*(name: string,
+             styling: PrintStyling,
              flds: varargs[tuple[
                name: string,
                value: ObjTree]]): ObjTree =
 
   ObjTree(
-    styling: initPrintStyling(),
+    styling: styling,
     kind: okComposed,
     namedObject: true,
     namedFields: true,
@@ -35,18 +61,26 @@ func pptObj*(name: string,
     fldPairs: toSeq(flds)
   )
 
-func pptObj*(name: string, flds: varargs[ObjTree]): ObjTree =
+
+func pptObj*(name: string,
+             flds: varargs[tuple[name: string, value: ObjTree]]): ObjTree =
+  pptObj(name, initPrintStyling(), flds)
+
+func pptObj*(
+  name: string, styling: PrintStyling, flds: varargs[ObjTree]): ObjTree =
   result = ObjTree(
-    styling: initPrintStyling(),
+    styling: styling,
     kind: okComposed,
     namedObject: true,
     namedFields: false,
-    name: name# ,
-             # fldPairs: flds.mapIt(("", it))
+    name: name
   )
 
   for fld in flds:
     result.fldPairs.add(("", fld))
+
+func pptObj*(name: string, flds: varargs[ObjTree]): ObjTree =
+  pptObj(name, initPrintStyling(), flds)
 
 
 type
@@ -128,7 +162,7 @@ func treeReprImpl*(tree: ObjTree,
   let prefStrNoarrow = pref.mapIt(it.tern("|   ", "    ")).join("")
   case tree.kind:
     of okConstant:
-      return @[prefStr & tree.strLit]
+      return @[prefStr & tree.strLit.toStyled(tree.styling)]
     of okSequence:
       if pref.len + 1 > params.maxdepth:
         return @[prefStr & (tree.itemType.len > 0).tern(
@@ -170,8 +204,8 @@ func treeReprImpl*(tree: ObjTree,
          )
     of okComposed:
       let
-        name = tree.name.validIdentifier.tern(
-          tree.name, tree.name.wrap("``"))
+        treeName = tree.name.toStyled(tree.styling)
+        name = tree.name.validIdentifier.tern(treeName, treeName.wrap("``"))
 
       if pref.len + 1 > params.maxdepth:
         result &= prefStr & name & " ... (" &
@@ -192,7 +226,7 @@ func treeReprImpl*(tree: ObjTree,
         result &= prefStr & name & ":"
 
       result &= concat mapPairs(tree.fldPairs) do:
-        tree.namedFields.tern(@[prefStr & lhs], @[]) &
+        tree.namedFields.tern(@["  " & prefStr & lhs], @[]) &
         treeReprImpl(
           rhs,
           params,

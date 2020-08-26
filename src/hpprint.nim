@@ -669,12 +669,15 @@ proc pstringRecursive(
 
   case current.kind:
     of okConstant:
+
       var clines: seq[string] = current.strLit.styleTerm(
         current.styling).splitSGR_sep().mapIt(it.toString())
 
-      clines[^1] &= current.annotation
-      # echo "cl: ", clines
-      result = makeChunk(content = clines)
+      if clines.len > 0:
+        clines[^1] &= current.annotation
+        result = makeChunk(content = clines)
+      else:
+        result = makeChunk(content = @[""])
     of okComposed:
       let maxFld = current.fldPairs.mapIt(
         it.name.termLen() + conf.fldNameWrapper.start.content.len() +
