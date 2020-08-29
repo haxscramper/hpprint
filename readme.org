@@ -157,6 +157,11 @@ ppDiff(
 - [ ] grapvhiz representation (partially implemented)
 - [ ] more styling information for object parts. Different styling for
   string and integer literals etc.
+- [ ] Object validation callbacks to show if pretty-printed value is
+  not within normal range. Annotations for fields are already
+  supported right now, meaning it might be just a matter of
+  implementation. Can be integrated with [[https://github.com/haxscramper/nimtraits][nimtraits]] validation
+  mechanics.
 
 Most of the implementation problems are already solved. There are of
 course lots of edge cases that has to be tested. ~ppDiff~ currently

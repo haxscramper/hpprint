@@ -739,7 +739,8 @@ const objectPPrintConf = PPrintConf(
   objWrapper: (makeDelim("("), makeDelim(")")),
   tblWrapper: (makeDelim("{"), makeDelim("}")),
   kvSeparator: ": ",
-  nowrapMultiline: true
+  nowrapMultiline: true,
+  # hideEmptyFields: true # FIXME does not seem to work
 )
 
 
