@@ -2,7 +2,7 @@
 
 version       = "0.2.5"
 author        = "haxscramper"
-description   = "Pretty-printer"
+description   = "Generic configurable pretty-printer"
 license       = "Apache-2.0"
 srcDir        = "src"
 

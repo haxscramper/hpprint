@@ -7,6 +7,19 @@ Correctly handles unicode text and ANSI escape codes in text.
 
 Supports style configuration and user-defined pretty-print converters.
 
+* Installation
+
+#+begin_src nim
+nimble install hpprint
+#+end_src
+
+* Links
+
+- [[https://nimble.directory/pkg/hpprint][nimble package]]
+- [[https://discord.gg/hjfYJCU][discord server]]
+- [[https://github.com/haxscramper/hpprint][github]]
+- [[https://haxscramper.github.io/hpprint-doc/src/hpprint.html][API documentation]]
+
 * Pretty-printing
 
 Supports regular pretty-printing with auto-layout, tree representation
@@ -162,6 +175,8 @@ ppDiff(
   supported right now, meaning it might be just a matter of
   implementation. Can be integrated with [[https://github.com/haxscramper/nimtraits][nimtraits]] validation
   mechanics.
+- [ ] Optionally disable use of dedicated pretty-print converters for
+  certain type.
 
 Most of the implementation problems are already solved. There are of
 course lots of edge cases that has to be tested. ~ppDiff~ currently

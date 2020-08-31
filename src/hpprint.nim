@@ -338,6 +338,12 @@ type
 func kvPair*(name: string, val: Chunk, annotation: string): KVPair =
   KVPair(name: name, val: val, annotation: annotation)
 
+func `[]`(ch: Chunk, idx: int): string =
+  if idx >= ch.content.len:
+    ""
+  else:
+    ch.content[idx]
+
 type
   RelPos* = enum
     ## Relative position of label to chunk
@@ -609,7 +615,7 @@ proc arrangeKVPairs(
         current.kind == okComposed and (not current.namedFields)):
         input.mapIt(&"{it.val.content[0]}").join(conf.seqSeparator)
       else:
-        input.mapIt(&"{it.name}{conf.kvSeparator}{it.val.content[0]}").join(
+        input.mapIt(&"{it.name}{conf.kvSeparator}{it.val[0]}").join(
           conf.seqSeparator)
 
     singleLine = wrapBeg.content & singleLine & wrapEnd.content
