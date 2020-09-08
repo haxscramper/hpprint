@@ -95,7 +95,7 @@ type
 func lispReprImpl*(tree: ObjTree,
                    params: TreeReprParams,
                    level: int): string =
-
+  # TODO implement basic layout configuration
   if level >= params.maxDepth:
     return "..."
 
@@ -103,7 +103,7 @@ func lispReprImpl*(tree: ObjTree,
   let prefix = params.newlines.tern("  ".repeat(level + 1), "")
   case tree.kind:
     of okConstant:
-      return tree.strLit
+      return tree.strLit.toStyled(tree.styling)
     of okSequence:
       return (block:
         collect(newSeq):
@@ -123,9 +123,9 @@ func lispReprImpl*(tree: ObjTree,
         wrap do:
           if tree.namedObject:
             if tree.name.validIdentifier():
-              (&"({tree.name} ", ")")
+              (&"({tree.name.toStyled(tree.styling)} ", ")")
             else:
-              (&"(`{tree.name}` ", ")")
+              (&"(`{tree.name.toStyled(tree.styling)}` ", ")")
           else:
             (("(", ")"))
 
