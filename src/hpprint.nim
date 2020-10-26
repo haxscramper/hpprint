@@ -7,13 +7,27 @@
 # TODO allow to compress elements back if necessary (rst node
 # represents each field as separate leaf)
 
+# IDEA add support for forced single/multi line positioning of things
+# like sequences.
+
+# IDEA optionally annotate each genrated entry with type. This is
+# useful for more complicated objects which contain different fields
+# of different types and might benefid from annotaion type annotaion.
+# Information is already stored in `ObjTree` so this is only a matter
+# of crrectly identifying right/left fringes and writing information
+# on them.
+
 ## Universal pretty-printer
 
 import hnimast
 import hmisc/types/[hprimitives, colorstring]
 import hmisc/helpers
 
-import strformat, tables, strutils, sequtils, unicode, typetraits, macros
+when not defined(nimscript):
+  import terminal
+
+import strformat, tables, strutils, sequtils, unicode, typetraits, macros,
+       options
 import with
 
 
@@ -30,6 +44,9 @@ type
     start: Delim,
     final: Delim
   ]
+
+  PStyleConf* = object
+    typeMapping*: proc(ctype: string): PrintStyling {.noSideEffect.}
 
   PPrintConf* = object
     ##[
@@ -60,6 +77,19 @@ Pretty print configuration
     hideEmptyFields*: bool ## Hide empty fields (seq of zero length,
     ## `nil` references etc.).
 
+let terminalPStyleConf* = PStyleConf(typeMapping:
+  (
+    func(ctype: string): PrintStyling =
+      result = initPrintStyling()
+      # echov ctype
+      case ctype:
+        of "string", "char", "seq[Rune]":
+          result.fg = fgYellow
+        of "int":
+          result.fg = fgBlue
+  )
+)
+
 
 func isKVpairs(obj: ObjTree): bool =
   ## Check if entry should be printed as list of key-value pairs
@@ -73,50 +103,64 @@ proc dedicatedConvertMatcher*[Obj](
   ## converters
   return conv(val)
 
-proc prettyPrintConverter(val: JsonNode, path: seq[int] = @[0]): ObjTree =
+func getStyling(conf: PStyleConf, ctype: string): PrintStyling =
+  if conf.typeMapping != nil:
+    conf.typeMapping(ctype)
+  else:
+    initPrintStyling()
+
+proc prettyPrintConverter(
+  val: JsonNode,
+  sconf: PStyleConf,
+  path: seq[int] = @[0],
+     ): ObjTree =
   ## Dedicated pretty-print converter implementation for `JsonNode`
   case val.kind:
     of JNull:
-      return ObjTree(
+      ObjTree(
         constType: "nil", kind: okConstant,
-        strLit: "null", styling: initPrintStyling())
+        strLit: "null", styling: sconf.getStyling("nil"))
     of JBool:
-      return ObjTree(
+      ObjTree(
         constType: "bool", kind: okConstant,
-        strLit: $val.getBool(), styling: initPrintStyling())
+        strLit: $val.getBool(), styling: sconf.getStyling("bool"))
     of JInt:
-      return ObjTree(
+      ObjTree(
         constType: "int", kind: okConstant,
-        strLit: $val.getInt(), styling: initPrintStyling())
+        strLit: $val.getInt(), styling: sconf.getStyling("int"))
     of JFloat:
-      return ObjTree(
-        constType: "string", kind: okConstant,
-        strLit: $val.getFloat(), styling: initPrintStyling())
+      ObjTree(
+        constType: "float", kind: okConstant,
+        strLit: $val.getFloat(), styling: sconf.getStyling("float"))
     of JString:
-      return ObjTree(
+      ObjTree(
         constType: "string", kind: okConstant,
-        strLit: &"\"{val.getStr()}\"", styling: initPrintStyling())
+        strLit: &"\"{val.getStr()}\"",
+        styling: sconf.getStyling("string")
+      )
     of JArray:
-      return ObjTree(
-        kind: okSequence, styling: initPrintStyling(),
+      ObjTree(
+        kind: okSequence, styling: sconf.getStyling("seq"),
         valItems: val.getElems().mapPairs(
-          prettyPrintConverter(rhs, path = path & @[idx])
+          prettyPrintConverter(rhs, sconf, path = path & @[idx])
         )
       )
     of JObject:
-      return ObjTree(
+      ObjTree(
         kind: okComposed,
         namedFields: true,
         namedObject: false,
-        styling: initPrintStyling(),
+        styling: sconf.getStyling("object"),
         fldPairs: val.getFields().mapPairs((
           name: lhs,
-          value: prettyPrintConverter(rhs, path = path & @[idx])
+          value: prettyPrintConverter(
+            rhs, sconf, path = path & @[idx])
         )))
 
-proc prettyPrintConverter(val: seq[Rune], path: seq[int] = @[0]): ObjTree =
+proc prettyPrintConverter(
+  val: seq[Rune], sconf: PStyleConf, path: seq[int] = @[0]): ObjTree =
   ObjTree(
-    styling: initPrintStyling(),
+    styling: sconf.getStyling($typeof(val)),
     kind: okConstant,
     constType: "seq[Rune]",
     strLit: &"\"{val}\""
@@ -169,8 +213,10 @@ func next(cnt: var IdCounter): int =
 proc toSimpleTree*[Obj](
   entry: Obj,
   idCounter: var IdCounter,
+  sconf: PStyleConf,
   conf: PPrintConf = PPrintConf(),
   path: seq[int] = @[0]): ObjTree =
+  # echov typeof entry
   ## Top-level dispatch for pretty-printing
   ##
   ## Generic implementation for pretty-print conveter for types not
@@ -179,9 +225,9 @@ proc toSimpleTree*[Obj](
   defer:
     result.isPrimitive = result.checkPrimitive()
 
-  when compiles(prettyPrintConverter(entry, path = path)):
+  when compiles(prettyPrintConverter(entry, sconf, path = path)):
     # If dedicated implementation exists, use it
-    return prettyPrintConverter(entry, path = path)
+    return prettyPrintConverter(entry, sconf, path = path)
   elif not ( # key-value pairs (tables etc.)
       (entry is seq) or
       (entry is array) or
@@ -191,7 +237,7 @@ proc toSimpleTree*[Obj](
 
     # IMPLEMENT Insert values in sorted order to give the same layout
     # for unordered containers
-    result = ObjTree(styling: initPrintStyling(),
+    result = ObjTree(styling: sconf.getStyling($typeof(entry)),
       kind: okTable,
       keyType: $typeof((pairs(entry).nthType1)),
       valType: $typeof((pairs(entry).nthType2)),
@@ -201,20 +247,20 @@ proc toSimpleTree*[Obj](
 
     for key, val in pairs(entry):
       result.valPairs.add(($key, toSimpleTree(val,
-          idCounter
+          idCounter, sconf, conf
       )))
 
     result.valPairs.sort do (x, y: auto) -> int:
       cmp(x[0], y[0])
 
   elif not ( # sequences but not strings
-      (entry is string)
+      (entry is string) or
+      (entry is char)
     ) and (
     (compiles(for i in items(entry): discard)) or
     (compiles(for i in items(entry[]): discard))
   ):
-    # echo typeof entry
-    result = ObjTree(styling: initPrintStyling(),
+    result = ObjTree(styling: sconf.getStyling($typeof(entry)),
       kind: okSequence,
       itemType: $typeof(items(unref entry)),
       objId: (entry is ref).tern(
@@ -227,20 +273,29 @@ proc toSimpleTree*[Obj](
     for it in items(unref entry):
       result.valItems.add(toSimpleTree(
         it, path = path & @[idx],
+        sconf = sconf,
         idCounter = idCounter
       ))
       inc idx
 
-  elif (entry is object) or # objects
-       (entry is ref object) or
-       (entry is tuple):
+  elif not (entry is Option) and
+       (
+         (entry is object) or # objects
+         (entry is ref object) or
+         (entry is tuple)):
     let id: int =
       when entry is ref:
-        cast[int](unsafeAddr entry)
+        when nimvm:
+          when compiles(hash(entry)):
+            hash(entry)
+          else:
+            0
+        else:
+          cast[int](unsafeAddr entry)
       else:
         idCounter.next()
     when (entry is object) or (entry is ref object):
-      result = ObjTree(styling: initPrintStyling(),
+      result = ObjTree(styling: sconf.getStyling($typeof(entry)),
         kind: okComposed,
         name: $typeof(Obj),
         namedObject: true,
@@ -248,7 +303,7 @@ proc toSimpleTree*[Obj](
         objId: id
       )
     elif isNamedTuple(Obj):
-      result = ObjTree(styling: initPrintStyling(),
+      result = ObjTree(styling: sconf.getStyling($typeof(entry)),
         kind: okComposed,
         name: $typeof(Obj),
         namedObject: false,
@@ -256,7 +311,7 @@ proc toSimpleTree*[Obj](
         objId: id
       )
     else:
-      result = ObjTree(styling: initPrintStyling(),
+      result = ObjTree(styling: sconf.getStyling($typeof(entry)),
         kind: okComposed,
         namedFields: false,
         namedObject: false,
@@ -267,7 +322,7 @@ proc toSimpleTree*[Obj](
 
     when (entry is ref object):
       if entry == nil:
-        result = ObjTree(styling: initPrintStyling(),
+        result = ObjTree(styling: sconf.getStyling($typeof(entry)),
           kind: okConstant,
           constType: $(typeof(Obj)),
           strLit: "nil",
@@ -278,6 +333,7 @@ proc toSimpleTree*[Obj](
         for name, value in entry[].fieldPairs():
           result.fldPairs.add((name, toSimpleTree(
             value, path = path & @[idx],
+            sconf = sconf,
             idCounter = idCounter
           )))
           inc idx
@@ -286,6 +342,7 @@ proc toSimpleTree*[Obj](
       for name, value in entry.fieldPairs():
         result.fldPairs.add((name, toSimpleTree(
           value,
+          sconf = sconf,
           path = path & @[idx],
           idCounter = idCounter
         )))
@@ -293,14 +350,38 @@ proc toSimpleTree*[Obj](
 
 
   elif (entry is proc): # proc type
-    result = ObjTree(styling: initPrintStyling(),
+    result = ObjTree(styling: sconf.getStyling($typeof(entry)),
       kind: okConstant,
       constType: $(typeof(Obj)),
       strLit: $(typeof(Obj)),
       path: path,
       objId: idCounter.next()
     )
+  elif entry is Option:
+    if entry.isSome():
+      result = ObjTree(styling: sconf.getStyling($typeof(entry)),
+        kind: okComposed,
+        name: $typeof(Obj),
+        namedObject: false,
+        namedFields: false,
+        objId: 1, # HACK
+        fldPairs: @[(
+          name: "val",
+          value: toSimpleTree(
+            entry.get(), sconf = sconf,
+            path = path & @[0], idCounter = idCounter))])
+    else:
+      result = ObjTree(styling: sconf.getStyling($typeof(entry)),
+        kind: okConstant,
+        constType: $typeof(Obj),
+        strLit: "none",
+        path: path,
+        objId: idCounter.next()
+      )
+
   else: # everything else
+    # echov typeof entry
+    var style = sconf.getStyling($typeof(entry))
     when entry is string:
       let val = "\"" & entry & "\""
     elif entry is pointer:
@@ -311,10 +392,14 @@ proc toSimpleTree*[Obj](
       let val = "\'" & $(@[entry]) & "\'"
     elif entry is NimNode:
       let val = entry.treeRepr()
+    elif entry is (SomeNumber | bool):
+      let val = $entry
+    elif entry is enum:
+      let val = $entry
     else:
       let val = $entry
 
-    result = ObjTree(styling: initPrintStyling(),
+    result = ObjTree(styling: style,
       kind: okConstant,
       constType: $typeof(Obj),
       strLit: val,
@@ -760,11 +845,14 @@ func getSubnodes*(it: ObjTree): seq[ObjTree] =
 
 
 func makeCounter*(): IdCounter = IdCounter()
-proc pstring*[Obj](obj: Obj, ident: int = 0, maxWidth: int = 80): string =
+proc pstring*[Obj](
+  obj: Obj, ident: int = 0,
+  maxWidth: int = 80,
+  sconf: PStyleConf = terminalPStyleConf): string =
   var counter = makeCounter()
   var conf = objectPPrintConf
   conf.maxWidth = maxWidth
-  prettyString(toSimpleTree(obj, counter), conf, ident)
+  prettyString(toSimpleTree(obj, counter, sconf), conf, ident)
 
 
 proc pstring*[Obj](obj: Obj, conf: PPrintConf): string =
@@ -785,7 +873,8 @@ proc pprint*(tree: ObjTree, maxw: int = 80): void =
 
 proc toObjTree*[Obj](obj: Obj): ObjTree =
   var counter = makeCounter()
-  toSimpleTree(obj, counter)
+  var sconf = PStyleConf()
+  toSimpleTree(obj, counter, sconf)
 
 proc pprintAtPath*[Obj](obj: Obj, path: TreePath): void =
   var counter = makeCounter()

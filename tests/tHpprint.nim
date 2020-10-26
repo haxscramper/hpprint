@@ -58,7 +58,7 @@ suite "Block grid":
 
   test "Graphviz block grid":
     let grid = makeGrid(@[@["hell", "eolrsd"], @["", "123"]])
-    let graph = makeDotGraph(nodes = @[makeNode(1, grid.toHtml())])
+    let graph = makeDotGraph(nodes = @[makeDotNode(1, grid.toHtml())])
     graph.toPng("/tmp/hello.png")
     # quit 0
 
@@ -180,7 +180,8 @@ var conf = PPrintConf(
 
 template pstr(arg: untyped, ident: int = 0): untyped =
   var counter = makeCounter()
-  toSimpleTree(arg, counter).prettyString(conf, ident)
+  var sconf = PStyleConf()
+  toSimpleTree(arg, counter, sconf).prettyString(conf, ident)
 
 suite "Simple configuration":
   test "integer":
@@ -294,6 +295,7 @@ suite "Deeply nested types":
          "[[[[[[[[1]]]]]]]]"
 
   test "4x4 seq":
+    conf.maxWidth = 60
     assertEq @[
       @[1, 2, 3, 4],
       @[5, 6, 7, 8],
@@ -364,7 +366,8 @@ var jsonConf = PPrintConf(
 
 template pjson(arg: untyped): untyped =
   var counter = makeCounter()
-  toSimpleTree(arg, counter).prettyString(jsonConf)
+  let sconf = PStyleConf()
+  toSimpleTree(arg, counter, sconf).prettyString(jsonConf)
 
 suite "Json pretty printing":
   test "Reparse int":
@@ -425,7 +428,8 @@ var treeConf = PPrintConf(
 
 template treeStr(arg: untyped): untyped =
   var counter = makeCounter()
-  toSimpleTree(arg, counter).prettyString(treeConf)
+  let sconf = PStyleConf()
+  toSimpleTree(arg, counter, sconf).prettyString(treeConf)
 
 suite "Repr pprint":
   test "Lisp repr":
@@ -674,3 +678,17 @@ suite "Object diff":
 
     tree.pprint()
     tree.pprint(2)
+
+suite "Colored pretty-printing":
+  test "primitive types":
+    pprint "hello"
+    pprint 12
+    pprint '1'
+    pprint @["12", "2"]
+
+  test "Tuples and json":
+    pprint %["he", "llo"]
+    pprint %12
+
+  test "Larger types":
+    pprint PPrintConf()

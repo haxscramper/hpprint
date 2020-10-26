@@ -11,7 +11,7 @@ srcDir        = "src"
 # Dependencies
 
 requires "nim >= 1.2.6"
-requires "shell"
+requires "shell", "with"
 requires "hdrawing", "hasts", "hnimast"
 requires "hmisc >= 0.4.3"
 
@@ -30,7 +30,8 @@ when canImport(hmisc/other/nimbleutils):
 
   task dockertestDevel, "Test in docker container with local packages":
     runDockerTestDevel(
-      thisDir(), testDir, localDevel, "nimble test") do:
+      AbsDir thisDir(),
+      AbsDir testDir, localDevel, "nimble test") do:
         writeTestConfig("""
           --verbosity:0
           --hints:off
@@ -42,7 +43,8 @@ when canImport(hmisc/other/nimbleutils):
 
   task dockertestAllDevel, "Test in docker container with local packages":
     runDockerTestDevel(
-      thisDir(), testDir, localDevel, "nimble testallTask") do:
+      AbsDir thisDir(),
+      AbsDir testDir, localDevel, "nimble testallTask") do:
         writeTestConfig("""
           --verbosity:0
           --hints:off
@@ -52,15 +54,18 @@ when canImport(hmisc/other/nimbleutils):
   task dockertest, "Test in new docker container":
     ## Run unit tests in new docker conatiner; download all
     ## dependencies using nimble.
-    runDockerTest(thisDir(), testDir, "nimble test") do:
+    runDockerTest(AbsDir thisDir(), AbsDir testDir, "nimble test") do:
       notice "Running test in docker container"
 
   task installtest, "Test installation from cloned repo":
-    runDockerTest(thisDir(), testDir, "nimble install")
+    runDockerTest(AbsDir thisDir(), AbsDir testDir, "nimble install")
 
   task testall, "Run full test suite in all variations":
     runDockerTest(
-      thisDir(), testDir, "nimble install hmisc@#head && nimble testallTask")
+      AbsDir thisDir(),
+      AbsDir testDir,
+      "nimble install hmisc@#head && nimble testallTask"
+    )
 
   task testallTask, "~~~ testall implementation ~~~":
     testAllImpl()

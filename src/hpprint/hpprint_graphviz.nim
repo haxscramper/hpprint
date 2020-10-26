@@ -133,7 +133,8 @@ proc makeTermGridConf(
 
 proc toPGrid*[T](obj: T): string =
   var counter = makeCounter()
-  let tree = toSimpleTree(obj, counter)
+  var sconf = PStyleConf()
+  let tree = toSimpleTree(obj, counter, sconf)
   let (grid, edges) = toGrid[TermTextConf](tree, makeTermGridConf)
   return grid.toTermBuf().toString()
 
