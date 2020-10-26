@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.2.7"
+version       = "0.2.8"
 author        = "haxscramper"
 description   = "Generic configurable pretty-printer"
 license       = "Apache-2.0"
@@ -13,7 +13,7 @@ srcDir        = "src"
 requires "nim >= 1.2.6"
 requires "shell", "with"
 requires "hdrawing", "hasts", "hnimast"
-requires "hmisc >= 0.4.3"
+requires "hmisc >= 0.8.0"
 
 
 let
