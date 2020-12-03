@@ -37,6 +37,7 @@ func pptMap*(kvTypes: (string, string),
   ObjTree(
     styling: styling,
     kind: okTable,
+    keyStyling: initPrintStyling(),
     keyType: kvTypes[0],
     valType: kvTypes[1],
     valPairs: toSeq(vals)

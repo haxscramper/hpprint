@@ -17,6 +17,14 @@
 # of crrectly identifying right/left fringes and writing information
 # on them.
 
+# TODO optionally ignore subfields and nodes. Can access paths for
+# specifying patterns, and just compare elements using strings. And in
+# general - configuration for what should be printed is quite important.
+# Things like 100+-element sequences are fine if you generate HTML that can
+# be collapsed, but not so much in terminal (adaptive configuration based
+# on target backend? Optional coloring, respect `--color=never` and similar
+# options?)
+
 ## Universal pretty-printer
 
 import hnimast
@@ -45,8 +53,14 @@ type
     final: Delim
   ]
 
+  StylingPosition = enum
+    stpDefault
+    stpTableKey
+    stpTableVal
+
   PStyleConf* = object
-    typeMapping*: proc(ctype: string): PrintStyling {.noSideEffect.}
+    typeMapping*: proc(
+      ctype: string, pos: StylingPosition): PrintStyling {.noSideEffect.}
 
   PPrintConf* = object
     ##[
@@ -77,11 +91,15 @@ Pretty print configuration
     hideEmptyFields*: bool ## Hide empty fields (seq of zero length,
     ## `nil` references etc.).
 
-let terminalPStyleConf* = PStyleConf(typeMapping:
+
+const terminalPStyleConf* = PStyleConf(typeMapping:
   (
-    func(ctype: string): PrintStyling =
+    func(ctype: string, pos: StylingPosition): PrintStyling =
       result = initPrintStyling()
       # echov ctype
+      if pos == stpTableKey:
+        result.fg = fgGreen
+
       case ctype:
         of "string", "char", "seq[Rune]":
           result.fg = fgYellow
@@ -103,9 +121,11 @@ proc dedicatedConvertMatcher*[Obj](
   ## converters
   return conv(val)
 
-func getStyling(conf: PStyleConf, ctype: string): PrintStyling =
+func getStyling(
+  conf: PStyleConf, ctype: string,
+  stp: StylingPosition = stpDefault): PrintStyling =
   if conf.typeMapping != nil:
-    conf.typeMapping(ctype)
+    conf.typeMapping(ctype, stp)
   else:
     initPrintStyling()
 
@@ -237,12 +257,17 @@ proc toSimpleTree*[Obj](
 
     # IMPLEMENT Insert values in sorted order to give the same layout
     # for unordered containers
+    var keyType: string
+    for key, val in pairs(entry):
+      keyType = $typeof(key)
+
     result = ObjTree(styling: sconf.getStyling($typeof(entry)),
       kind: okTable,
       keyType: $typeof((pairs(entry).nthType1)),
       valType: $typeof((pairs(entry).nthType2)),
       path: path,
-      objId: idCounter.next()
+      objId: idCounter.next(),
+      keyStyling: sconf.getStyling(keyType, stpTableKey)
     )
 
     for key, val in pairs(entry):
@@ -788,10 +813,13 @@ proc pstringRecursive(
 
       result = tmp.arrangeKVPairs(conf, current, ident + maxFld)
     of okTable:
+      # FIXME print key/value/table (in case this is a non `Table`
+      # mapping) types
       let maxFld = current.valPairs.mapIt(it.key.termLen()).max(0)
+      # FIXME align key-value pairs
       result = current.valPairs.mapIt(
         kvPair(
-          it.key,
+          it.key.styleTerm(current.keyStyling),
           pstringRecursive(it.val, conf, maxFld + ident),
           it.val.annotation
         )
@@ -880,7 +908,8 @@ proc pprintAtPath*[Obj](obj: Obj, path: TreePath): void =
   var counter = makeCounter()
   pprint toSimpleTree(obj, counter).getAtPath(path)
 
-proc pprint*[Obj](obj: Obj, ident: int = 0, maxWidth: int = 80): void =
+proc pprint*[Obj](
+  obj: Obj, ident: int = 0, maxWidth: int = 80): void =
   echo pstring(obj, ident,  maxWidth)
   # var conf = objectPPrintConf
   # conf.maxWidth = maxWidth
