@@ -4,10 +4,10 @@ description   = "Generic configurable pretty-printer"
 license       = "Apache-2.0"
 srcDir        = "src"
 
-requires "nim >= 1.2.6"
+requires "nim >= 1.4.0"
 requires "shell", "with"
 requires "hdrawing", "hasts", "hnimast >= 0.3.10"
-requires "hmisc >= 0.8.0"
+requires "hmisc >= 0.9.15"
 
 
 let

@@ -153,8 +153,9 @@ suite "Block labeling":
       })
 
       fail("Unreachable code")
-    except AssertionError:
+    except ArgumentError:
       assert getCurrentExceptionMsg().startsWith("Incompatible chunk labels")
+
     except:
       fail("Wrong exception")
 
@@ -568,6 +569,8 @@ suite "Object tree to dot graph":
 import ../src/hpprint/objdiff
 
 suite "Object diff":
+  test "ppDif simple":
+    ppDiff 1, 2
 
   test "diff integers":
     assertEq diff(1, 2).paths(), @[@[0]]

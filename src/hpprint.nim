@@ -542,7 +542,8 @@ proc relativePosition*(
   let prefixOverride = (rpPrefix in labels)
 
   if prefixOverride and (rpTopLeftLeft in labels or rpBottomRight in labels):
-    raiseAssert("Incompatible chunk labels - prefix&top-left-left or prefix&bottom-right")
+    raiseArgumentError(
+      "Incompatible chunk labels - prefix&top-left-left or prefix&bottom-right")
 
   for pos, label in labels:
     with label:
@@ -864,9 +865,8 @@ const objectPPrintConf = PPrintConf(
 
 
 func getSubnodes*(it: ObjTree): seq[ObjTree] =
-  debugecho &"get subnodes for tree id {it.objId}"
   case it.kind:
-    of okConstant: raiseAssert("No sub for `okConstant`")
+    of okConstant: raiseArgumentError("No sub for `okConstant`")
     of okSequence: it.valItems
     of okTable: it.valPairs.mapIt(it.val)
     of okComposed: it.fldPairs.mapIt(it.value)
