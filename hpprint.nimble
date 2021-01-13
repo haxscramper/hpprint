@@ -1,4 +1,4 @@
-version       = "0.2.10"
+version       = "0.2.11"
 author        = "haxscramper"
 description   = "Generic configurable pretty-printer"
 license       = "Apache-2.0"
@@ -6,7 +6,7 @@ srcDir        = "src"
 
 requires "nim >= 1.4.0"
 requires "shell", "with"
-requires "hdrawing", "hasts", "hnimast >= 0.3.10"
+requires "hdrawing >= 0.1.2", "hasts >= 0.1.4", "hnimast >= 0.3.10"
 requires "hmisc >= 0.9.15"
 
 
