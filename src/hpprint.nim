@@ -743,7 +743,7 @@ proc arrangeKVPairs(
   let fldsWidth =
     # Width of the larges field
     if current.isKVPairs():
-      input.mapIt(it.name.termLen()).max() + conf.kvSeparator.len()
+      input.mapIt(it.name.termLen()).max(0) + conf.kvSeparator.len()
     else:
       0
 

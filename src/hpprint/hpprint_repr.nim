@@ -3,6 +3,8 @@ import hmisc/types/colorstring
 import hnimast
 import hmisc/algo/[halgorithm, hseq_mapping, clformat]
 
+export ObjTree
+
 func pptConst*(
   val: string, styling: PrintStyling = initPrintStyling()): ObjTree =
   ObjTree(styling: styling, kind: okConstant, strlit: val)
@@ -139,11 +141,14 @@ func lispRepr*(
   ), level = 0)
 
 #==============================  Tree repr  ==============================#
-func treeReprImpl*(tree: ObjTree,
-                   params: TreeReprParams,
-                   pref: seq[bool],
-                   parentMaxIdx, currIdx: int,
-                   parentKind: ObjKind): seq[string] =
+func treeReprImpl*(
+    tree: ObjTree,
+    params: TreeReprParams,
+    pref: seq[bool],
+    parentMaxIdx, currIdx: int,
+    parentKind: ObjKind,
+    backticks: bool
+  ): seq[string] =
 
   let arrow =
     case parentKind:
@@ -164,7 +169,16 @@ func treeReprImpl*(tree: ObjTree,
   let prefStrNoarrow = pref.mapIt(it.tern("|   ", "    ")).join("")
   case tree.kind:
     of okConstant:
-      return @[prefStr & tree.strLit.toStyled(tree.styling)]
+      var idx = 0
+      for line in tree.strLit.split('\n'):
+        result.add tern(
+          idx == 0,
+          prefStr,
+          pref.mapIt(tern(it, "|    ", "    ")).join("") &
+            repeat(" " , arrow.len)
+        ) & line.toStyled(tree.styling)
+        inc idx
+
     of okSequence:
       if pref.len + 1 > params.maxdepth:
         return @[prefStr & (tree.itemType.len > 0).tern(
@@ -179,15 +193,19 @@ func treeReprImpl*(tree: ObjTree,
           pref & @[currIdx != parentMaxIdx],
           parentMaxIdx = tree.valItems.len - 1,
           currIdx = idx,
-          parentKind = tree.kind
+          parentKind = tree.kind,
+          backticks = backticks
         )
+
     of okTable:
       let name = (tree.keyType.len > 0 and tree.valType.len > 0).tern(
           &"[{tree.keyType} -> {tree.valType}] ", "")
+
       if pref.len + 1 > params.maxdepth:
         result &= prefStr & name & "... (" &
           toPluralNoun("pair", tree.valPairs.len) & ")"
         return
+
       else:
         result &= prefStr & name
 
@@ -202,28 +220,35 @@ func treeReprImpl*(tree: ObjTree,
                @[idx < tree.valPairs.len - 1], @[]),
            parentMaxIdx = tree.valPairs.len - 1,
            currIdx = idx,
-           parentKind = rhs.kind
+           parentKind = rhs.kind,
+           backticks = backticks
          )
+
     of okComposed:
       let
         treeName = tree.name.toStyled(tree.styling)
-        name = tree.name.validIdentifier.tern(treeName, treeName.wrap("``"))
+        name = tern(
+          tree.name.validIdentifier or not backticks,
+          treeName, treeName.wrap("``"))
 
       if pref.len + 1 > params.maxdepth:
         result &= prefStr & name & " ... (" &
           toPluralNoun("field", tree.fldPairs.len) & ")"
         return
-      elif #[ FIXME ]# false and
+
+      elif
         (tree.fldPairs.len == 1) and
         (tree.fldPairs[0].value.kind == okConstant):
+
         let fld = tree.fldPairs[0]
         if fld.value.kind == okConstant:
           if tree.namedFields:
-            result &= &" {fld.name} {fld.value}" # TODO handle multiline
+            result &= &"{prefStr}{name} {fld.value}"
           else:
-            result &= &" {fld.value}" # TODO handle multiline
+            result &= &"{prefStr}{name} +-> {fld.value.strLit}"
 
           return
+
       else:
         result &= prefStr & name & ":"
 
@@ -235,15 +260,18 @@ func treeReprImpl*(tree: ObjTree,
           pref & @[currIdx != parentMaxIdx],
           parentMaxIdx = tree.fldPairs.len - 1,
           currIdx = idx,
-          parentKind = tree.kind
+          parentKind = tree.kind,
+          backticks = backticks
         )
 
-func treeRepr*(tree: ObjTree, maxlevel: int = 60): string =
+func treeRepr*(
+  tree: ObjTree, maxlevel: int = 60, backticks: bool = true): string =
   treeReprImpl(
     tree,
     TreeReprParams(
       maxDepth: maxlevel
     ),
     @[], 0, 0,
-    parentKind = tree.kind
+    parentKind = tree.kind,
+    backticks = backticks
   ).join("\n")

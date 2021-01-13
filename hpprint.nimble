@@ -6,7 +6,7 @@ srcDir        = "src"
 
 requires "nim >= 1.2.6"
 requires "shell", "with"
-requires "hdrawing", "hasts", "hnimast"
+requires "hdrawing", "hasts", "hnimast >= 0.3.10"
 requires "hmisc >= 0.8.0"
 
 
