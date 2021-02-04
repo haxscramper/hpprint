@@ -71,24 +71,24 @@ suite "Block labeling":
 
   test "Chunk label on left":
     assertEq $(testtmp(
-      @{ rpTopLeftLeft : (text: "<>", offset: 0) })), "<>[|||]"
+      @{rpTopLeftLeft: (text: "<>", offset: 0)})), "<>[|||]"
 
   test "Chunk label on top left":
     assertEq $(testtmp(
-      @{ rpTopLeftAbove : (text: "<-->", offset: 2) })), "<-->\n  [|||]"
+      @{rpTopLeftAbove: (text: "<-->", offset: 2)})), "<-->\n  [|||]"
 
   test "Chunk label on bottom right":
     assertEq $(testtmp(
-      @{ rpBottomRight : (text: "<>", offset: 2) })), "[|||]<>"
+      @{rpBottomRight: (text: "<>", offset: 2)})), "[|||]<>"
 
   test "Chunk label on bottom left":
     assertEq $(testtmp(
-      @{ rpBottomLeft : (text: "<>", offset: 2) })), "  [|||]\n<>"
+      @{rpBottomLeft: (text: "<>", offset: 2)})), "  [|||]\n<>"
 
   test "Top-above & bottom left":
     assertEq $(testtmp(
-      @{ rpTopLeftAbove : (text: "{{{", offset: 2),
-         rpBottomLeft : (text: "}}}", offset: 2)})),
+      @{rpTopLeftAbove: (text: "{{{", offset: 2),
+         rpBottomLeft: (text: "}}}", offset: 2)})),
          """
          {{{
            [|||]
@@ -96,10 +96,10 @@ suite "Block labeling":
 
   test "Multiline block compact":
     assertEq $(testtmp(
-      @{ rpBottomRight: (text: "}}", offset: 2),
+      @{rpBottomRight: (text: "}}", offset: 2),
          rpTopLeftLeft: (text: "{{", offset: 2)
-         # Top left left offset should be ignored
-       },
+      # Top left left offset should be ignored
+    },
       chunkLines = @["[||||]", "[||||]"]
     )),
          """
@@ -108,10 +108,10 @@ suite "Block labeling":
 
   test "Multiline block expanded":
     assertEq $(testtmp(
-      @{ rpBottomLeft: (text: "}}", offset: 2),
+      @{rpBottomLeft: (text: "}}", offset: 2),
          rpTopLeftAbove: (text: "{{", offset: 2)
-         # Top left left offset should be ignored
-       },
+      # Top left left offset should be ignored
+    },
       chunkLines = @["[||||]", "[||||]"]
     )),
          """
@@ -122,11 +122,11 @@ suite "Block labeling":
 
   test "Multiline block expanded with prefix":
     assertEq $(testtmp(
-      @{ rpBottomLeft: (text: "}}", offset: 2),
+      @{rpBottomLeft: (text: "}}", offset: 2),
          rpTopLeftAbove: (text: "{{", offset: 2),
          rpPrefix: (text: "- ", offset: 2)
-         # Top left left offset should be ignored
-       },
+      # Top left left offset should be ignored
+    },
       chunkLines = @["[||||]", "[||||]"]
     )),
          """
@@ -136,11 +136,11 @@ suite "Block labeling":
          }}""".dedent
   test "Multiline block with colored prefix":
     assertEq $(testtmp(
-      @{ rpBottomLeft: (text: "\e[31m}}\e[39m", offset: 2),
+      @{rpBottomLeft: (text: "\e[31m}}\e[39m", offset: 2),
          rpTopLeftAbove: (text: "\e[31m{{\e[39m", offset: 2),
          rpPrefix: (text: "- ", offset: 2)
-         # Top left left offset should be ignored
-       },
+      # Top left left offset should be ignored
+    },
       chunkLines = @["[||||]", "[||||]"]
     )),
          "\e[31m{{\e[39m\n- [||||]\n- [||||]\n\e[31m}}\e[39m"
@@ -202,11 +202,11 @@ suite "Simple configuration":
 
   test "Narrow sequence":
     conf.maxWidth = 6
-    assertEq @[1,2,3,4].pstr(), "- 1\n- 2\n- 3\n- 4"
+    assertEq @[1, 2, 3, 4].pstr(), "- 1\n- 2\n- 3\n- 4"
 
   test "Wide sequence":
     conf.maxWidth = 80
-    assertEq @[1,2,3].pstr(), "[1, 2, 3]"
+    assertEq @[1, 2, 3].pstr(), "[1, 2, 3]"
 
   test "int-int table":
     assertEq {2: 3, 4: 5}.toOrderedTable().pstr(), "{2: 3, 4: 5}"
@@ -270,10 +270,10 @@ suite "Colored printing":
     var tree = toObjTree(A(
       f1: @[21],
       f2: @[
-      A(f1: @[1,2,3,4,5,6]),
-      A(f1: @[1,2,3,4,5,6]),
-      A(f1: @[1,2,3,4,5,6]),
-      A(f1: @[1,2,3,4,5,6])
+      A(f1: @[1, 2, 3, 4, 5, 6]),
+      A(f1: @[1, 2, 3, 4, 5, 6]),
+      A(f1: @[1, 2, 3, 4, 5, 6]),
+      A(f1: @[1, 2, 3, 4, 5, 6])
     ]))
 
     tree.getAtPath(objPath("f1", 0)).annotate(" Hello".toRed())
@@ -312,7 +312,7 @@ suite "Deeply nested types":
       @[5, 6, 7, 8],
       @[9, 1, 2, 3],
       @[4, 5, 6, 7],
-    ].pstr(),  """
+    ].pstr(), """
       - [1, 2, 3, 4]
       - [5, 6, 7, 8]
       - [9, 1, 2, 3]
@@ -398,7 +398,7 @@ suite "Json pretty printing":
         }""".dedent()
 
   test "Large JSON reparse":
-      let jsonNode = parseJson """
+    let jsonNode = parseJson """
 {"menu": {
   "id": "file",
   "value": "File",
@@ -411,7 +411,7 @@ suite "Json pretty printing":
   }
 }}        """
 
-      assertEq jsonNode, jsonNode.pjson().parseJson()
+    assertEq jsonNode, jsonNode.pjson().parseJson()
 
 
 var treeConf = PPrintConf(
@@ -436,7 +436,7 @@ suite "Repr pprint":
   test "Lisp repr":
     assertEq pptConst("12").lispRepr(), "12"
     assertEq pptSeq(pptConst("12")).lispRepr(), "'(12)"
-    assertEq pptObj("Hello", {"we" : pptConst("12")}).lispRepr(),
+    assertEq pptObj("Hello", {"we": pptConst("12")}).lispRepr(),
       "(Hello :we 12)"
     assertEq pptObj("Hello", pptConst("12")).lispRepr(),
       "(Hello 12)"
@@ -452,13 +452,13 @@ suite "Repr pprint":
                 pptSeq(pptConst "Hello", pptConst "1231"),
                 pptSeq("item", pptConst "Hello", pptConst "1231"),
                 pptMap(("int", "float"), {
-                  "Hello" : pptConst("Workd"),
-                  "Nice" : pptSeq(pptConst("123"), pptConst("q234"))
-                }),
-                pptObj("Object name",
-                  pptConst("12"),
-                  pptConst("12"),
-                  pptConst("12")))
+                  "Hello": pptConst("Workd"),
+                  "Nice": pptSeq(pptConst("123"), pptConst("q234"))
+      }),
+      pptObj("Object name",
+        pptConst("12"),
+        pptConst("12"),
+        pptConst("12")))
 
     echo obj.treeRepr(maxlevel = 1)
     echo obj.treeRepr()
@@ -474,10 +474,44 @@ suite "Repr pprint":
       "eeee",
       initPrintStyling(fg = fgYellow),
       {
-        "fld1" : pptConst("3333", initPrintStyling(fg = fgGreen)),
-        "flde" : pptConst("3333", initPrintStyling(fg = fgBlue))
+        "fld1": pptConst("3333", initPrintStyling(fg = fgGreen)),
+        "flde": pptConst("3333", initPrintStyling(fg = fgBlue))
       }
     ).treeRepr()
+
+  test "Nested sequence":
+    echo treeRepr(
+      pptObj(
+        "hello",
+        {
+          "fld1" : pptSeq(
+            pptConst("123"),
+            pptConst("xzzzz"),
+            pptObj("test", {
+              "sub" : pptConst("zzz"),
+              "sub" : pptSeq(
+                 pptConst("zzz"),
+                 pptConst("zzz")
+              )
+            })
+          ),
+          "fld2" : pptConst("123")
+        }
+      )
+    )
+
+  test "Nested named object":
+    echo treeRepr(
+      pptObj("A", {
+        "0" : pptObj("B", {
+          "1" : pptSeq(pptConst("123"), pptConst("456")),
+          "1" : pptSeq(pptConst("123"), pptConst("456")),
+          "1" : pptSeq(pptConst("123"), pptConst("456")),
+          "1" : pptSeq(pptConst("123"), pptConst("456"))
+        })
+      })
+    )
+
 
 suite "Large object printout":
   test "Large JSON as treeRepr":
@@ -661,19 +695,19 @@ suite "Object diff":
 
   test "{diff}":
     ppDiff({
-      "A" : newStmtList(newLit("hello"), newLit(1.22))
+      "A": newStmtList(newLit("hello"), newLit(1.22))
     }, {
-      "A" : newStmtList(newLit("hello"), newLit(1.23))
+      "A": newStmtList(newLit("hello"), newLit(1.23))
     })
 
   test "{diff} sequence item count":
-    ppDiff(@[1,2,3], @[1,2,3,4])
-    ppDiff(@[1,2,3,4], @[1,2,3])
+    ppDiff(@[1, 2, 3], @[1, 2, 3, 4])
+    ppDiff(@[1, 2, 3, 4], @[1, 2, 3])
 
   test "{annotate} set annotation for object":
     var tree = toObjTree(@[
-      @[2,3,43,4,5],
-      @[2,3,43,4,5],
+      @[2, 3, 43, 4, 5],
+      @[2, 3, 43, 4, 5],
     ])
 
     tree.mgetAtPath(@[0, 0]).annotate(" # Hello\n # World".toYellow())

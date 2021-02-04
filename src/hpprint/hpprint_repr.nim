@@ -1,6 +1,8 @@
-import strutils, sequtils, strformat, sugar
+import strutils, sequtils, strformat, sugar, std/enumerate
 import hmisc/types/colorstring
+import hmisc/macros/introspection
 import hnimast
+import ../hpprint
 import hmisc/algo/[halgorithm, hseq_mapping, clformat]
 
 export ObjTree
@@ -161,10 +163,16 @@ func treeReprImpl*(
     if pref.len > 0:
       if parentKind == okSequence and pref.len == 1:
         arrow
+
       else:
         pref.mapIt(it.tern("|   ", "    ")).join("") & arrow
+
     else:
-      ""
+      if tree.kind == okComposed and tree.namedFields:
+        "    "
+
+      else:
+        ""
 
   let prefStrNoarrow = pref.mapIt(it.tern("|   ", "    ")).join("")
   case tree.kind:
@@ -182,15 +190,18 @@ func treeReprImpl*(
     of okSequence:
       if pref.len + 1 > params.maxdepth:
         return @[prefStr & (tree.itemType.len > 0).tern(
-          &"seq[{tree.itemType}] ", "") & "... (" &
-          toPluralNoun("item", tree.valItems.len) & ")"
+          &"seq[{tree.itemType}] ", "") &
+            "... (" &
+            $tree.valItems.len & " " &
+            toPluralNoun("item", tree.valItems.len) & ")"
         ]
 
+      let pref = pref & @[currIdx != parentMaxIdx]
       for idx, item in tree.valItems:
         result &= treeReprImpl(
           item,
           params,
-          pref & @[currIdx != parentMaxIdx],
+          pref,
           parentMaxIdx = tree.valItems.len - 1,
           currIdx = idx,
           parentKind = tree.kind,
@@ -202,7 +213,7 @@ func treeReprImpl*(
           &"[{tree.keyType} -> {tree.valType}] ", "")
 
       if pref.len + 1 > params.maxdepth:
-        result &= prefStr & name & "... (" &
+        result &= prefStr & name & "... (" & $tree.valPairs.len & " " &
           toPluralNoun("pair", tree.valPairs.len) & ")"
         return
 
@@ -232,7 +243,7 @@ func treeReprImpl*(
           treeName, treeName.wrap("``"))
 
       if pref.len + 1 > params.maxdepth:
-        result &= prefStr & name & " ... (" &
+        result &= prefStr & name & " ... (" & $tree.fldPairs.len & " " &
           toPluralNoun("field", tree.fldPairs.len) & ")"
         return
 
@@ -244,6 +255,7 @@ func treeReprImpl*(
         if fld.value.kind == okConstant:
           if tree.namedFields:
             result &= &"{prefStr}{name} {fld.value}"
+
           else:
             result &= &"{prefStr}{name} +-> {fld.value.strLit}"
 
@@ -252,12 +264,20 @@ func treeReprImpl*(
       else:
         result &= prefStr & name & ":"
 
-      result &= concat mapPairs(tree.fldPairs) do:
-        tree.namedFields.tern(@["  " & prefStr & lhs], @[]) &
-        treeReprImpl(
-          rhs,
+      for idx, (name, value) in enumerate(tree.fldPairs):
+        if tree.namedFields:
+          result.add prefStr & name
+
+        var pref = pref
+
+        pref.add currIdx != parentMaxIdx
+        if value.kind != okSequence and tree.namedFields:
+          pref.add false
+
+        result.add treeReprImpl(
+          value,
           params,
-          pref & @[currIdx != parentMaxIdx],
+          pref,
           parentMaxIdx = tree.fldPairs.len - 1,
           currIdx = idx,
           parentKind = tree.kind,
@@ -265,7 +285,7 @@ func treeReprImpl*(
         )
 
 func treeRepr*(
-  tree: ObjTree, maxlevel: int = 60, backticks: bool = true): string =
+  tree: ObjTree, maxlevel: int = 60, backticks: bool = false): string =
   treeReprImpl(
     tree,
     TreeReprParams(
@@ -275,3 +295,17 @@ func treeRepr*(
     parentKind = tree.kind,
     backticks = backticks
   ).join("\n")
+
+proc objTreeRepr*[T](entry: T): ObjTree =
+  mixin items, pairs, prettyPrintConverter
+  var counter = makeCounter()
+  toSimpleTree(entry, counter, PStyleConf())
+
+proc objTreeRepr*[T](elems: seq[T]): ObjTree =
+  pptSeq(mapIt(elems, objTreeRepr(it)))
+
+proc objTreeRepr*(en: enum): ObjTree =
+  pptConst(directEnumName(en))
+
+proc objTreeRepr*[T: enum](enSet: set[T]): ObjTree =
+  pptConst("{" & mapIt(enSet, directEnumName(it)).join(", ") & "}")

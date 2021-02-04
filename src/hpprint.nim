@@ -242,6 +242,9 @@ proc toSimpleTree*[Obj](
   ## Generic implementation for pretty-print conveter for types not
   ## implementing dedicated `prettyPrintConverter`
   mixin prettyPrintConverter
+  mixin items
+  mixin pairs
+
   defer:
     result.isPrimitive = result.checkPrimitive()
 
@@ -285,9 +288,26 @@ proc toSimpleTree*[Obj](
     (compiles(for i in items(entry): discard)) or
     (compiles(for i in items(entry[]): discard))
   ):
+    mixin items
+    # static:
+    #   echo typeof(unref entry)
+    #   echo typeof(entry)
+    #   echo entry is ref
+    #   echo entry is ref object
+    #   echo entry is object
+    #   echo (unref entry) is object
+
+    const directItems = compiles(for i in items(entry): discard)
+
     result = ObjTree(styling: sconf.getStyling($typeof(entry)),
       kind: okSequence,
-      itemType: $typeof(items(unref entry)),
+      itemType: $typeof(
+        when directItems:
+          items(entry)
+
+        else:
+          items(entry[])
+      ),
       objId: (entry is ref).tern(
         cast[int](unsafeAddr entry),
         idCounter.next()
@@ -295,7 +315,13 @@ proc toSimpleTree*[Obj](
     )
 
     var idx: int = 0
-    for it in items(unref entry):
+    for it in (
+      when directItems:
+        items(entry)
+
+      else:
+        items(entry[])
+    ):
       result.valItems.add(toSimpleTree(
         it, path = path & @[idx],
         sconf = sconf,
@@ -409,20 +435,31 @@ proc toSimpleTree*[Obj](
     var style = sconf.getStyling($typeof(entry))
     when entry is string:
       let val = "\"" & entry & "\""
+
     elif entry is pointer:
       let val = "<pointer>"
+
     elif entry is void:
       let val = "<void>"
+
     elif entry is Rune:
       let val = "\'" & $(@[entry]) & "\'"
+
     elif entry is NimNode:
       let val = entry.treeRepr()
+
     elif entry is (SomeNumber | bool):
       let val = $entry
+
     elif entry is enum:
       let val = $entry
+
     else:
-      let val = $entry
+      when entry is distinct and not compiles($entry):
+        let val = $distinctBase(entry)
+
+      else:
+        let val = $entry
 
     result = ObjTree(styling: style,
       kind: okConstant,
