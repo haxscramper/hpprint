@@ -1,1 +1,43 @@
 - [ ] ~hideEmptyFields~ needs more testing
+- [ ] Support for hiding fields using path globs - ~**/.data~ for hiding
+  all fields named 'data', ~*/.data~ for doing so only on toplevel (?).
+  Also should support constraints for array index ranges: ~**/.data[11 ..
+  ^1]~ should match all elements starting from one at index ~11~.
+  - Support for allow/forbig globs: ~<pattern>~ and ~!<pattern>~
+  - I don't think implementing complicated matching algorithm is really
+    necessary, so optimizing things like ~**/**/.data~ is not really
+    necessary - just make it a hard error.
+  - Glob syntax fits quite well with nim, so I can just define operator
+    overloading constructs for that one.
+- [ ] 'ultrapack' object fields where applicable - if I can arrange certain
+  elements in a grid, it might save some amount of space:
+
+  #+begin_src nim
+    IrcEvent
+      typ:        EvMsg
+      cmd:        MPong
+      nick:       ""
+      user:       ""
+      host:       ""
+      servername: "irc.example.net"
+      numeric:    ""
+      tags:       {}
+      params:     ["irc.example.net", "1612535161.421481"]
+      origin:     "irc.example.net"
+      raw:        ":irc.example.net PONG irc.example.net :1612535161.421481"
+      timestamp:  Time(seconds: 1612535161, nanosecond: 421749422)
+  #+end_src
+
+  vs
+
+  #+begin_src nim
+    IrcEvent
+      typ:        EvMsg        cmd:        MPong
+      nick:       ""           user:       ""
+      host:       ""           servername: "irc.example.net"
+      numeric:    ""           tags:       {}
+      params:     ["irc.example.net", "1612535161.421481"]
+      origin:     "irc.example.net"
+      raw:        ":irc.example.net PONG irc.example.net :1612535161.421481"
+      timestamp:  Time(seconds: 1612535161, nanosecond: 421749422)
+  #+end_src
