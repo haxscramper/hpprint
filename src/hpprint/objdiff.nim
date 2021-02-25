@@ -18,17 +18,6 @@ type
       else:
         discard
 
-  ObjAccessor = object
-    case kind: ObjKind
-      of okConstant:
-        nil
-      of okSequence:
-        idx: int
-      of okComposed:
-        name: string
-      of okTable:
-        key: string
-
   TreePath = seq[int]
   ObjDiffPaths = Trie[int, ObjDiff]
 

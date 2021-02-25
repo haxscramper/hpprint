@@ -168,7 +168,7 @@ var conf = PPrintConf(
 template pstr(arg: untyped, ident: int = 0): untyped =
   var counter = makeCounter()
   toSimpleTree(
-    arg, counter, PStyleConf(), conf, @[0]
+    arg, counter, PStyleConf(), conf, @[]
   ).prettyString(conf, ident)
 
 suite "Simple configuration":
@@ -263,13 +263,13 @@ suite "Colored printing":
       A(f1: @[1, 2, 3, 4, 5, 6])
     ]))
 
-    tree.getAtPath(objPath("f1", 0)).annotate(" Hello".toRed())
-    tree.getAtPath(objPath("f2")).annotate("Hello".toGreen())
-    tree.getAtPath(objPath("f2")).stylize(PrintStyling(
+    tree.getAtPath(@[objAccs("f1"), seqAccs(0)]).annotate(" Hello".toRed())
+    tree.getAtPath(@[objAccs("f2")]).annotate("Hello".toGreen())
+    tree.getAtPath(@[objAccs("f2")]).stylize(PrintStyling(
       fg: fgRed
     ))
 
-    tree.getAtPath(objPath("f2", 1)).stylize(PrintStyling(
+    tree.getAtPath(@[objAccs("f2"), seqAccs(1)]).stylize(PrintStyling(
       fg: fgBlue
     ))
 
@@ -361,7 +361,7 @@ template pjson(arg: untyped): untyped =
   var counter = makeCounter()
   let sconf = PStyleConf()
   toSimpleTree(
-    arg, counter, sconf, PPrintConf(), @[0]).prettyString(jsonConf)
+    arg, counter, sconf, PPrintConf(), @[]).prettyString(jsonConf)
 
 suite "Json pretty printing":
   test "Reparse int":
