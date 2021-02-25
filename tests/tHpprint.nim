@@ -1,6 +1,6 @@
 import unittest, shell, sugar, sequtils, terminal
 
-import hmisc/[helpers]
+import hmisc/[helpers, hdebug_misc]
 import strutils
 
 
@@ -9,8 +9,10 @@ import hdrawing, hdrawing/block_grid
 
 import hnimast, hnimast/obj_field_macros
 import ../src/hpprint
-import ../src/hpprint/[hpprint_graphviz, hpprint_repr]
+import ../src/hpprint/[hpprint_repr]
 import hmisc/types/[seq2d, htrie, colorstring]
+
+startHax()
 
 converter toSeq2D*[T](s: seq[seq[T]]): Seq2d[T] =
   makeSeq2D(s)
@@ -38,10 +40,6 @@ suite "Block grid":
       (3, 1)
     ))
 
-  test "Convert object tree into grid":
-    echo toPGrid("Hello")
-    echo toPGrid(("Hello", 12, 1.2))
-
   test "Block grid to html table":
     var grid = makeGrid(
       @[@["hello", "123"],
@@ -49,18 +47,6 @@ suite "Block grid":
 
     grid.setOrAdd(makeArrPos(0, 2), makeGrid(
       @[@["eee", "Ewer"], @["123", "123"]]))
-
-    let text = grid.toHtml().toHtmlDoc()
-    echo text
-
-    "/tmp/grid.html".writeFile(text)
-
-
-  test "Graphviz block grid":
-    let grid = makeGrid(@[@["hell", "eolrsd"], @["", "123"]])
-    let graph = makeDotGraph(nodes = @[makeDotNode(1, grid.toHtml())])
-    graph.toPng("/tmp/hello.png")
-    # quit 0
 
 
 suite "Block labeling":
@@ -181,8 +167,9 @@ var conf = PPrintConf(
 
 template pstr(arg: untyped, ident: int = 0): untyped =
   var counter = makeCounter()
-  var sconf = PStyleConf()
-  toSimpleTree(arg, counter, sconf).prettyString(conf, ident)
+  toSimpleTree(
+    arg, counter, PStyleConf(), conf, @[0]
+  ).prettyString(conf, ident)
 
 suite "Simple configuration":
   test "integer":
@@ -288,6 +275,11 @@ suite "Colored printing":
 
     echo tree.pstring()
 
+  test "Base pprint":
+    pprint 12
+    pprint [1, 2, 3, 4]
+    pprint ["hello"]
+    pprint ("123", 0.3, nil)
 
 
 suite "Deeply nested types":
@@ -368,7 +360,8 @@ var jsonConf = PPrintConf(
 template pjson(arg: untyped): untyped =
   var counter = makeCounter()
   let sconf = PStyleConf()
-  toSimpleTree(arg, counter, sconf).prettyString(jsonConf)
+  toSimpleTree(
+    arg, counter, sconf, PPrintConf(), @[0]).prettyString(jsonConf)
 
 suite "Json pretty printing":
   test "Reparse int":
@@ -430,7 +423,7 @@ var treeConf = PPrintConf(
 template treeStr(arg: untyped): untyped =
   var counter = makeCounter()
   let sconf = PStyleConf()
-  toSimpleTree(arg, counter, sconf).prettyString(treeConf)
+  toSimpleTree(arg, counter, sconf, treeConf, @[]).prettyString(treeConf)
 
 suite "Repr pprint":
   test "Lisp repr":

@@ -285,7 +285,8 @@ func treeReprImpl*(
         )
 
 func treeRepr*(
-  tree: ObjTree, maxlevel: int = 60, backticks: bool = false): string =
+  tree: ObjTree,
+  maxlevel: int = 60, backticks: bool = false): string =
   treeReprImpl(
     tree,
     TreeReprParams(
@@ -296,13 +297,13 @@ func treeRepr*(
     backticks = backticks
   ).join("\n")
 
-proc objTreeRepr*[T](entry: T): ObjTree =
+proc objTreeRepr*[T](entry: T, colored: bool = true): ObjTree =
   mixin items, pairs, prettyPrintConverter
   var counter = makeCounter()
-  toSimpleTree(entry, counter, PStyleConf())
+  toSimpleTree(entry, counter, PStyleConf(colored: colored))
 
-proc objTreeRepr*[T](elems: seq[T]): ObjTree =
-  pptSeq(mapIt(elems, objTreeRepr(it)))
+proc objTreeRepr*[T](elems: seq[T], colored: bool = true): ObjTree =
+  pptSeq(mapIt(elems, objTreeRepr(it, colored = colored)))
 
 proc objTreeRepr*(en: enum): ObjTree =
   pptConst(directEnumName(en))

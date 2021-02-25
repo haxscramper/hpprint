@@ -36,7 +36,6 @@ when not defined(nimscript):
 
 import strformat, tables, strutils, sequtils, unicode, typetraits, macros,
        options
-import with
 
 
 #==========================  type declaration  ===========================#
@@ -59,6 +58,7 @@ type
     stpTableVal
 
   PStyleConf* = object
+    colored*: bool
     typeMapping*: proc(
       ctype: string, pos: StylingPosition): PrintStyling {.noSideEffect.}
 
@@ -92,19 +92,23 @@ Pretty print configuration
     ## `nil` references etc.).
 
 
-const terminalPStyleConf* = PStyleConf(typeMapping:
-  (
+const terminalPStyleConf* = PStyleConf(
+  colored: true,
+  typeMapping: (
     func(ctype: string, pos: StylingPosition): PrintStyling =
       result = initPrintStyling()
-      # echov ctype
       if pos == stpTableKey:
         result.fg = fgGreen
 
       case ctype:
-        of "string", "char", "seq[Rune]":
+        of "string", "char", "seq[Rune]", "Rune":
           result.fg = fgYellow
-        of "int":
+
+        of "int", "float":
           result.fg = fgBlue
+
+        of "nil":
+          result.fg = fgCyan
   )
 )
 
@@ -122,18 +126,20 @@ proc dedicatedConvertMatcher*[Obj](
   return conv(val)
 
 func getStyling(
-  conf: PStyleConf, ctype: string,
-  stp: StylingPosition = stpDefault): PrintStyling =
-  if conf.typeMapping != nil:
-    conf.typeMapping(ctype, stp)
-  else:
+    conf: PStyleConf, ctype: string,
+    stp: StylingPosition = stpDefault
+  ): PrintStyling =
+  if not conf.colored or isNil(conf.typeMapping):
     initPrintStyling()
 
+  else:
+    conf.typeMapping(ctype, stp)
+
 proc prettyPrintConverter(
-  val: JsonNode,
-  sconf: PStyleConf,
-  path: seq[int] = @[0],
-     ): ObjTree =
+    val: JsonNode,
+    sconf: PStyleConf,
+    path: seq[int] = @[0],
+  ): ObjTree =
   ## Dedicated pretty-print converter implementation for `JsonNode`
   case val.kind:
     of JNull:
@@ -212,12 +218,15 @@ NOTE: values are not checked for primitivenes recursively. Instead
   case tree.kind:
     of okConstant:
       tree.constType in @["string", "int", "float"]
+
     of okSequence:
       (tree.valItems.len < 5) and
       tree.valItems.allOfIt(it.isPrimitive)
+
     of okTable:
       (tree.valPairs.len < 5) and
       tree.valPairs.allOfIt(it.val.isPrimitive)
+
     of okComposed:
       (tree.fldPairs.len < 5) and
       tree.fldPairs.allOfIt(it.value.isPrimitive)
@@ -231,12 +240,12 @@ func next(cnt: var IdCounter): int =
   inc cnt.now
 
 proc toSimpleTree*[Obj](
-  entry: Obj,
-  idCounter: var IdCounter,
-  sconf: PStyleConf,
-  conf: PPrintConf = PPrintConf(),
-  path: seq[int] = @[0]): ObjTree =
-  # echov typeof entry
+    entry: Obj,
+    idCounter: var IdCounter,
+    sconf: PStyleConf,
+    conf: PPrintConf,
+    path: seq[int]
+  ): ObjTree =
   ## Top-level dispatch for pretty-printing
   ##
   ## Generic implementation for pretty-print conveter for types not
@@ -245,12 +254,21 @@ proc toSimpleTree*[Obj](
   mixin items
   mixin pairs
 
+  if entry is typeof(nil):
+    return ObjTree(
+      styling: sconf.getStyling("nil"),
+      kind: okConstant,
+      strLit: "nil",
+      path: path,
+    )
+
   defer:
     result.isPrimitive = result.checkPrimitive()
 
   when compiles(prettyPrintConverter(entry, sconf, path = path)):
     # If dedicated implementation exists, use it
     return prettyPrintConverter(entry, sconf, path = path)
+
   elif not ( # key-value pairs (tables etc.)
       (entry is seq) or
       (entry is array) or
@@ -275,7 +293,8 @@ proc toSimpleTree*[Obj](
 
     for key, val in pairs(entry):
       result.valPairs.add(($key, toSimpleTree(val,
-          idCounter, sconf, conf
+          idCounter, sconf = sconf, conf = conf,
+          path = path & @[0]
       )))
 
     result.valPairs.sort do (x, y: auto) -> int:
@@ -289,14 +308,6 @@ proc toSimpleTree*[Obj](
     (compiles(for i in items(entry[]): discard))
   ):
     mixin items
-    # static:
-    #   echo typeof(unref entry)
-    #   echo typeof(entry)
-    #   echo entry is ref
-    #   echo entry is ref object
-    #   echo entry is object
-    #   echo (unref entry) is object
-
     const directItems = compiles(for i in items(entry): discard)
 
     result = ObjTree(styling: sconf.getStyling($typeof(entry)),
@@ -325,7 +336,8 @@ proc toSimpleTree*[Obj](
       result.valItems.add(toSimpleTree(
         it, path = path & @[idx],
         sconf = sconf,
-        idCounter = idCounter
+        idCounter = idCounter,
+        conf = conf
       ))
       inc idx
 
@@ -345,6 +357,7 @@ proc toSimpleTree*[Obj](
           cast[int](unsafeAddr entry)
       else:
         idCounter.next()
+
     when (entry is object) or (entry is ref object):
       result = ObjTree(styling: sconf.getStyling($typeof(entry)),
         kind: okComposed,
@@ -353,6 +366,7 @@ proc toSimpleTree*[Obj](
         namedFields: true,
         objId: id
       )
+
     elif isNamedTuple(Obj):
       result = ObjTree(styling: sconf.getStyling($typeof(entry)),
         kind: okComposed,
@@ -361,6 +375,7 @@ proc toSimpleTree*[Obj](
         namedFields: true,
         objId: id
       )
+
     else:
       result = ObjTree(styling: sconf.getStyling($typeof(entry)),
         kind: okComposed,
@@ -379,6 +394,7 @@ proc toSimpleTree*[Obj](
           strLit: "nil",
           objId: idCounter.next()
         )
+
       else:
         var idx: int = 0
         for name, value in entry[].fieldPairs():
@@ -388,6 +404,7 @@ proc toSimpleTree*[Obj](
             idCounter = idCounter
           )))
           inc idx
+
     else:
       var idx: int = 0
       for name, value in entry.fieldPairs():
@@ -395,7 +412,8 @@ proc toSimpleTree*[Obj](
           value,
           sconf = sconf,
           path = path & @[idx],
-          idCounter = idCounter
+          idCounter = idCounter,
+          conf = conf
         )))
         inc idx
 
@@ -408,6 +426,7 @@ proc toSimpleTree*[Obj](
       path: path,
       objId: idCounter.next()
     )
+
   elif entry is Option:
     if entry.isSome():
       result = ObjTree(styling: sconf.getStyling($typeof(entry)),
@@ -421,6 +440,7 @@ proc toSimpleTree*[Obj](
           value: toSimpleTree(
             entry.get(), sconf = sconf,
             path = path & @[0], idCounter = idCounter))])
+
     else:
       result = ObjTree(styling: sconf.getStyling($typeof(entry)),
         kind: okConstant,
@@ -583,20 +603,23 @@ proc relativePosition*(
       "Incompatible chunk labels - prefix&top-left-left or prefix&bottom-right")
 
   for pos, label in labels:
-    with label:
-      case pos:
-        of rpBottomRight:
-          rightPad = text.termLen
-        of rpTopLeftAbove:
-          topPad = 1
-          leftPad = max(offset, leftPad)
-        of rpTopLeftLeft:
-          leftPad = max(leftPad, text.termLen)
-        of rpBottomLeft:
-          bottomPad = 1
-          leftPad = max(leftPad, offset)
-        of rpPrefix:
-          leftPad = text.termLen
+    case pos:
+      of rpBottomRight:
+        rightPad = label.text.termLen
+
+      of rpTopLeftAbove:
+        topPad = 1
+        leftPad = max(label.offset, leftPad)
+
+      of rpTopLeftLeft:
+        leftPad = max(leftPad, label.text.termLen)
+
+      of rpBottomLeft:
+        bottomPad = 1
+        leftPad = max(leftPad, label.offset)
+
+      of rpPrefix:
+        leftPad = label.text.termLen
 
   let resWidth = chunk.maxWidth + leftPad + rightPad
   let resHeight = chunk.lineCount + topPad + bottomPad
@@ -629,18 +652,11 @@ proc relativePosition*(
   return makeChunk(resLines.mapIt(strutils.strip(it, leading = false)))
 
 
-template echov(variable: untyped, other: varargs[string, `$`]): untyped =
-  let pref = "  ".repeat(getStackTraceEntries().len)
-
-  when variable is string:
-    echo pref, astToStr(variable), ": \"", variable, "\" ", other.join(" ")
-  else:
-    echo pref, astToStr(variable), ": ", variable, " ", other.join(" ")
-
 proc pstringRecursive(
   current: ObjTree, conf: PPrintCOnf, ident: int = 0): Chunk
 
-proc getWrapperConf(current: ObjTree, conf: PPrintConf): tuple[start, final: Delim] =
+proc getWrapperConf(
+  current: ObjTree, conf: PPrintConf): tuple[start, final: Delim] =
   let (wrapBeg, wrapEnd) = # Delimiters at the start/end of the block
     case current.kind:
       of okComposed:
@@ -896,7 +912,6 @@ const objectPPrintConf = PPrintConf(
   objWrapper: (makeDelim("("), makeDelim(")")),
   tblWrapper: (makeDelim("{"), makeDelim("}")),
   kvSeparator: ": ",
-  nowrapMultiline: true,
   # hideEmptyFields: true # FIXME does not seem to work
 )
 
@@ -911,13 +926,14 @@ func getSubnodes*(it: ObjTree): seq[ObjTree] =
 
 func makeCounter*(): IdCounter = IdCounter()
 proc pstring*[Obj](
-  obj: Obj, ident: int = 0,
-  maxWidth: int = 80,
-  sconf: PStyleConf = terminalPStyleConf): string =
+    obj: Obj, ident: int = 0,
+    maxWidth: int = 80,
+    sconf: PStyleConf = terminalPStyleConf
+  ): string =
   var counter = makeCounter()
   var conf = objectPPrintConf
   conf.maxWidth = maxWidth
-  prettyString(toSimpleTree(obj, counter, sconf), conf, ident)
+  prettyString(toSimpleTree(obj, counter, sconf, conf, @[0]), conf, ident)
 
 
 proc pstring*[Obj](obj: Obj, conf: PPrintConf): string =
@@ -938,8 +954,7 @@ proc pprint*(tree: ObjTree, maxw: int = 80): void =
 
 proc toObjTree*[Obj](obj: Obj): ObjTree =
   var counter = makeCounter()
-  var sconf = PStyleConf()
-  toSimpleTree(obj, counter, sconf)
+  toSimpleTree(obj, counter, terminalPStyleConf, objectPPrintConf, @[0])
 
 proc pprintAtPath*[Obj](obj: Obj, path: TreePath): void =
   var counter = makeCounter()
