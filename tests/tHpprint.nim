@@ -732,3 +732,8 @@ suite "Other tests":
     a.next = a
 
     pprint a
+
+  test "Glob ignore fields":
+    let val = (a: (b: (c: 10)))
+
+    pprint val, ignore = @["a/b/c"]

@@ -29,6 +29,7 @@
 
 import hnimast
 import hmisc/types/[hprimitives, colorstring]
+import hmisc/algo/hseq_distance
 import hmisc/helpers
 
 when not defined(nimscript):
@@ -93,6 +94,7 @@ Pretty print configuration
     seqWrapper*: DelimPair ## Delimiters for sequence instance
     hideEmptyFields*: bool ## Hide empty fields (seq of zero length,
     ## `nil` references etc.).
+    globIgnore*: seq[string]
 
 
 const terminalPStyleConf* = PStyleConf(
@@ -260,6 +262,23 @@ func visit[T](cnt: var IdCounter, c: T) =
   when c is ref or c is ptr:
     cnt.visitedAddrs.incl cast[int](c)
 
+func toJsonPtr*(path: ObjPath): string =
+  for idx, element in pairs(path):
+    if idx > 0:
+      result &= "/"
+
+    case element.kind:
+      of okConstant: result &= ""
+      of okSequence: result &= $element.idx
+      of okTable: result &= element.key
+      of okComposed: result &= element.name
+
+proc ignoredBy*(conf: PPrintConf, path: ObjPath): Option[string] =
+  if conf.globIgnore.len > 0:
+    for glob in conf.globIgnore:
+      if gitignoreGlobMatch(path.toJsonPtr(), glob):
+        return some(glob)
+
 proc toSimpleTree*[Obj](
     entry: Obj,
     idCounter: var IdCounter,
@@ -278,15 +297,28 @@ proc toSimpleTree*[Obj](
   defer:
     result.isPrimitive = result.checkPrimitive()
 
-  if idCounter.isVisited(entry):
-    return ObjTree(
+  let ignoredBy = conf.ignoredBy(path)
+  if idCounter.isVisited(entry) or ignoredBy.isSome():
+    result = ObjTree(
       styling: sconf.getStyling($typeof(Obj)),
       kind: okConstant,
       constType: $typeof(Obj),
-      strLit: "<visited>",
+      strLit: "",
       path: path,
       objId: idCounter.next()
     )
+
+    if idCounter.isVisited(entry):
+      result.strLit = "<visited>"
+
+    else:
+      result.strLit = "<ignored>"
+      result.ignored = true
+      # result.ignoredBy = ignoredBy
+
+    return
+
+
 
   idCounter.visit(entry)
 
@@ -325,10 +357,13 @@ proc toSimpleTree*[Obj](
     )
 
     for key, val in pairs(entry):
-      result.valPairs.add(($key, toSimpleTree(val,
-          idCounter, sconf = sconf, conf = conf,
-          path = path & tableAccs($key)
-      )))
+      let res = toSimpleTree(val,
+        idCounter, sconf = sconf, conf = conf,
+        path = path & tableAccs($key)
+      )
+
+      if not res.ignored:
+        result.valPairs.add(($key, res))
 
     result.valPairs.sort do (x, y: auto) -> int:
       cmp(x[0], y[0])
@@ -366,12 +401,16 @@ proc toSimpleTree*[Obj](
       else:
         items(entry[])
     ):
-      result.valItems.add(toSimpleTree(
+      let res = toSimpleTree(
         it, path = path & seqAccs(idx),
         sconf = sconf,
         idCounter = idCounter,
         conf = conf
-      ))
+      )
+
+      if not res.ignored:
+        result.valItems.add(res)
+
       inc idx
 
   elif not (entry is Option) and
@@ -436,24 +475,32 @@ proc toSimpleTree*[Obj](
       else:
         var idx: int = 0
         for name, value in fieldPairs(entry[]):
-          result.fldPairs.add((name, toSimpleTree(
+          let res = toSimpleTree(
             value, path = path & seqAccs(idx),
             sconf = sconf,
             conf = conf,
             idCounter = idCounter
-          )))
+          )
+
+          if not res.ignored:
+            result.fldPairs.add((name, res))
+
           inc idx
 
     else:
       var idx: int = 0
       for name, value in fieldPairs(entry):
-        result.fldPairs.add((name, toSimpleTree(
+        let res = toSimpleTree(
           value,
           sconf = sconf,
           path = path & objAccs(name),
           idCounter = idCounter,
           conf = conf
-        )))
+        )
+
+        if not res.ignored:
+          result.fldPairs.add((name, res))
+
         inc idx
 
 
@@ -892,7 +939,7 @@ proc pstringRecursive(
       let maxFld = current.fldPairs.mapIt(
         it.name.termLen() + conf.fldNameWrapper.start.content.len() +
         conf.fldNameWrapper.start.content.len()
-      ).max()
+      ).max(0)
 
       var tmp: seq[KVPair]
       for it in current.fldPairs:
@@ -967,11 +1014,13 @@ func makeCounter*(): IdCounter = IdCounter()
 proc pstring*[Obj](
     obj: Obj, ident: int = 0,
     maxWidth: int = 80,
+    ignore: seq[string] = @[],
     sconf: PStyleConf = terminalPStyleConf
   ): string =
   var counter = makeCounter()
   var conf = objectPPrintConf
   conf.maxWidth = maxWidth
+  conf.globIgnore = ignore
   prettyString(toSimpleTree(obj, counter, sconf, conf, @[]), conf, ident)
 
 
@@ -1000,8 +1049,11 @@ proc pprintAtPath*[Obj](obj: Obj, path: TreePath): void =
   pprint toSimpleTree(obj, counter).getAtPath(path)
 
 proc pprint*[Obj](
-  obj: Obj, ident: int = 0, maxWidth: int = 80): void =
-  echo pstring(obj, ident,  maxWidth)
+    obj: Obj, ident: int = 0,
+    maxWidth: int = 80,
+    ignore: seq[string] = @[]
+  ): void =
+  echo pstring(obj, ident,  maxWidth, ignore = ignore)
   # var conf = objectPPrintConf
   # conf.maxWidth = maxWidth
   # echo prettyString(toSimpleTree(obj), conf, ident)
