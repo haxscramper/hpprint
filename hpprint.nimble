@@ -1,4 +1,4 @@
-version       = "0.2.12"
+version       = "0.2.13"
 author        = "haxscramper"
 description   = "Generic configurable pretty-printer"
 license       = "Apache-2.0"
