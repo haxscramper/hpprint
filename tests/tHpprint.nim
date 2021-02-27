@@ -1,10 +1,10 @@
-import unittest, shell, sugar, sequtils, terminal
+import unittest, sugar, sequtils, terminal
 
 import hmisc/[helpers, hdebug_misc]
 import strutils
 
 
-import hasts/[graphviz_ast, html_ast]
+import hmisc/hasts/[graphviz_ast, html_ast]
 import hdrawing, hdrawing/block_grid
 
 import hnimast, hnimast/obj_field_macros

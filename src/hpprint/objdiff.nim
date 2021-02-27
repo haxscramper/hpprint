@@ -1,7 +1,8 @@
 import hmisc/types/[htrie, colorstring]
+import hmisc/other/hshell
 import hnimast, hnimast/obj_field_macros
 import ../hpprint
-import terminal, tables, shell, sequtils
+import std/[terminal, tables, sequtils]
 
 #===========================  type definition  ===========================#
 
@@ -27,8 +28,7 @@ type
 proc pprintCwdiff*[T](lhs, rhs: T): void =
   "/tmp/generated.nim".writeFile(pstring lhs)
   "/tmp/expected.nim".writeFile(pstring rhs)
-  shell:
-    "cwdiff" "/tmp/expected.nim" "/tmp/generated.nim"
+  execShell(shCmd(cwdiff, "/tmp/expected.nim", "/tmp/generated.nim"))
 
 proc diff*[T](lhsIn, rhsIn: T, path: TreePath = @[0]): ObjDiffPaths = #[
 
@@ -141,10 +141,12 @@ func toStr*(accs: seq[ObjAccessor]): string =
       of okConstant:
         discard
 
-proc ppDiff*[T](lhs, rhs: T,
-                printFull: bool = false,
-                die: bool = false,
-                maxWidth: int = 80): void =
+proc ppDiff*[T](
+    lhs, rhs: T,
+    printFull: bool = false,
+    die: bool = false,
+    maxWidth: int = 80
+  ): void =
   ## Pretty-print difference between two objects
   # TODO print items side-by-side if possible
   let diffpaths = diff(lhs, rhs)
@@ -180,11 +182,14 @@ proc ppDiff*[T](lhs, rhs: T,
             " # Value mismatch".toYellow({styleItalic}))
         lhsObjTree.mgetAtPath(path).styling.fg = fgGreen
 
+  let str = pstring(lhsObjTree, maxWidth = maxWidth)
   when defined(plainStdout):
-    let str = pstring(lhsObjTree, maxWidth = maxWidth)
     echo str.stripSGR()
+
   else:
-    pprint lhsObjTree, maxWidth = maxWidth
+    echo str
+    # pprint lhsObjTree, maxWidth = maxWidth
+
   if die and diffpaths.paths().len > 0:
     raiseAssert("Difference between objects")
 
