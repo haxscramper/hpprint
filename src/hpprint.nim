@@ -34,8 +34,10 @@ import hmisc/helpers
 when not defined(nimscript):
   import terminal
 
-import strformat, tables, strutils, sequtils, unicode, typetraits, macros,
-       options
+import std/[
+  strformat, tables, strutils, sequtils, unicode, typetraits,
+  macros, options, intsets
+]
 
 
 #==========================  type declaration  ===========================#
@@ -241,10 +243,22 @@ NOTE: values are not checked for primitivenes recursively. Instead
 type
   IdCounter = object
     now: int
+    visitedAddrs: IntSet
 
 func next(cnt: var IdCounter): int =
   result = cnt.now
   inc cnt.now
+
+func isVisited[T](cnt: IdCounter, a: T): bool =
+  when a is ref or a is ptr:
+    cast[int](a) in cnt.visitedAddrs
+
+  else:
+    false
+
+func visit[T](cnt: var IdCounter, c: T) =
+  when c is ref or c is ptr:
+    cnt.visitedAddrs.incl cast[int](c)
 
 proc toSimpleTree*[Obj](
     entry: Obj,
@@ -263,6 +277,18 @@ proc toSimpleTree*[Obj](
 
   defer:
     result.isPrimitive = result.checkPrimitive()
+
+  if idCounter.isVisited(entry):
+    return ObjTree(
+      styling: sconf.getStyling($typeof(Obj)),
+      kind: okConstant,
+      constType: $typeof(Obj),
+      strLit: "<visited>",
+      path: path,
+      objId: idCounter.next()
+    )
+
+  idCounter.visit(entry)
 
   when compiles(prettyPrintConverter(entry, sconf, path = path)):
     # If dedicated implementation exists, use it
@@ -411,8 +437,9 @@ proc toSimpleTree*[Obj](
         var idx: int = 0
         for name, value in fieldPairs(entry[]):
           result.fldPairs.add((name, toSimpleTree(
-            value, path = path & @[idx],
+            value, path = path & seqAccs(idx),
             sconf = sconf,
+            conf = conf,
             idCounter = idCounter
           )))
           inc idx

@@ -709,16 +709,26 @@ suite "Object diff":
     tree.pprint()
     tree.pprint(2)
 
-suite "Colored pretty-printing":
-  test "primitive types":
+suite "Other tests":
+  test "primitive types colored":
     pprint "hello"
     pprint 12
     pprint '1'
     pprint @["12", "2"]
 
-  test "Tuples and json":
+  test "Tuples and json colored":
     pprint %["he", "llo"]
     pprint %12
 
-  test "Larger types":
+  test "Larger types colored":
     pprint PPrintConf()
+
+  test "Cyclic objects":
+    type
+      A = ref object
+        next: A
+
+    var a = A()
+    a.next = a
+
+    pprint a
