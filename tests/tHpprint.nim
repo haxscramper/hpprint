@@ -166,10 +166,10 @@ var conf = PPrintConf(
 )
 
 template pstr(arg: untyped, ident: int = 0): untyped =
-  var counter = makeCounter()
-  toSimpleTree(
-    arg, counter, PStyleConf(), conf, @[]
-  ).prettyString(conf, ident)
+  var conf = conf
+  conf.idCounter = makeCounter()
+  let tree = toSimpleTree(arg, conf, @[])
+  prettyString(tree, conf, ident)
 
 suite "Simple configuration":
   test "integer":
@@ -358,10 +358,9 @@ var jsonConf = PPrintConf(
 )
 
 template pjson(arg: untyped): untyped =
-  var counter = makeCounter()
-  let sconf = PStyleConf()
-  toSimpleTree(
-    arg, counter, sconf, PPrintConf(), @[]).prettyString(jsonConf)
+  var conf = jsonConf
+  conf.idCounter = makeCounter()
+  toSimpleTree(arg, conf, @[]).prettyString(conf)
 
 suite "Json pretty printing":
   test "Reparse int":
@@ -421,9 +420,9 @@ var treeConf = PPrintConf(
 )
 
 template treeStr(arg: untyped): untyped =
-  var counter = makeCounter()
-  let sconf = PStyleConf()
-  toSimpleTree(arg, counter, sconf, treeConf, @[]).prettyString(treeConf)
+  var conf = treeConf
+  conf.idCounter = makeCounter()
+  toSimpleTree(arg, conf, @[]).prettyString(conf)
 
 suite "Repr pprint":
   test "Lisp repr":
@@ -737,3 +736,18 @@ suite "Other tests":
     let val = (a: (b: (c: 10)))
 
     pprint val, ignore = @["a/b/c"]
+
+  test "Enum array":
+    type
+      En = enum
+        en1 = "sdf"
+        en2
+        en3
+
+    block:
+      var arr: array[En, string]
+      pprint(arr)
+
+    block:
+      var arr: array[en1 .. en2, string]
+      pprint(arr)
