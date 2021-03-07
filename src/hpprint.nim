@@ -109,14 +109,14 @@ func next(cnt: var IdCounter): int =
   result = cnt.now
   inc cnt.now
 
-func isVisited[T](cnt: IdCounter, a: T): bool =
+func isVisited*[T](cnt: IdCounter, a: T): bool =
   when a is ref or a is ptr:
     cast[int](a) in cnt.visitedAddrs
 
   else:
     false
 
-func visit[T](cnt: var IdCounter, c: T) =
+func visit*[T](cnt: var IdCounter, c: T) =
   when c is ref or c is ptr:
     cnt.visitedAddrs.incl cast[int](c)
 
@@ -220,7 +220,7 @@ proc prettyPrintConverter*(
           )))
 
 proc prettyPrintConverter(
-  val: seq[Rune], conf: PPrintConf, path: seq[int] = @[0]): ObjTree =
+  val: seq[Rune], conf: var PPrintConf, path: ObjPath): ObjTree =
   ObjTree(
     styling: conf.sconf.getStyling($typeof(val)),
     kind: okConstant,
@@ -228,7 +228,27 @@ proc prettyPrintConverter(
     strLit: &"\"{val}\""
   )
 
-proc prettyPrintConverter(val: NimNode, path: seq[int] = @[0]): ObjTree =
+
+proc toSimpleTree*[Obj](
+    entry: Obj,
+    conf: var PPrintConf,
+    path: ObjPath
+  ): ObjTree
+
+proc prettyPrintConverter*[R1, R2](
+  val: HSlice[R1, R2], conf: var PPrintConf, path: ObjPath): ObjTree =
+  ObjTree(
+    styling: conf.sconf.getStyling($typeof(val)),
+    kind: okSequence,
+    itemType: $typeof(typeof(R1)),
+    objId: conf.idCounter.next(),
+    valItems: @[
+      toSimpleTree(val.a, conf, path),
+      toSimpleTree(val.b, conf, path)
+    ]
+  )
+
+proc prettyPrintConverter(val: NimNode, path: ObjPath): ObjTree =
   # TODO can add syntax hightlight to string literal generated from
   #      nim node
   ObjTree(
@@ -563,7 +583,8 @@ proc toSimpleTree*[Obj](
 
   elif entry is Option:
     if entry.isSome():
-      result = ObjTree(styling: sconf.getStyling($typeof(entry)),
+      result = ObjTree(
+        styling: conf.sconf.getStyling($typeof(entry)),
         kind: okComposed,
         name: $typeof(Obj),
         namedObject: false,
@@ -571,17 +592,16 @@ proc toSimpleTree*[Obj](
         objId: 1, # HACK
         fldPairs: @[(
           name: "val",
-          value: toSimpleTree(
-            entry.get(), sconf = sconf,
-            path = path & @[0], idCounter = idCounter))])
+          value: toSimpleTree(entry.get(), conf, path))])
 
     else:
-      result = ObjTree(styling: sconf.getStyling($typeof(entry)),
+      result = ObjTree(
+        styling: conf.sconf.getStyling($typeof(entry)),
         kind: okConstant,
         constType: $typeof(Obj),
         strLit: "none",
         path: path,
-        objId: idCounter.next()
+        objId: conf.idCounter.next()
       )
 
   else: # everything else
@@ -900,6 +920,9 @@ proc arrangeKVPairs(
   conf: PPrintConf, current: ObjTree, ident: int): Chunk =
   ## Layout sequence of key-value pairs. `name` field in tuple items
   ## might be empty if `current.kind` is `okSequence`.
+  ##
+  ## - TODO :: Align elements from 2d sequences and lists of one-line
+  ##   object's fields
   # if current.annotation.len > 0:
   #   echo current.annotation, " ", current.kind
   let (wrapBeg, wrapEnd) = getWrapperConf(current, conf)
@@ -1015,6 +1038,7 @@ proc pstringRecursive(
     of okSequence:
       var tmp: seq[KVPair]
       for it in current.valItems:
+        # IDEA optionally use element index as key
         tmp.add kvPair(
           "",
           pstringRecursive(it, conf, ident + conf.seqPrefix.termLen()),
@@ -1038,13 +1062,13 @@ proc prettyString*(tree: ObjTree,
   result = chunks.toString(ident)
 
 
-let objectPPrintConf = PPrintConf(
+let objectPPrintConf* = PPrintConf(
   maxWidth: 80,
   identStr: "  ",
   seqSeparator: ", ",
   seqPrefix: "- ",
   seqWrapper: (makeDelim("["), makeDelim("]")),
-  # objWrapper: (makeDelim("("), makeDelim(")")),
+  objWrapper: (makeDelim("("), makeDelim(")")),
   tblWrapper: (makeDelim("{"), makeDelim("}")),
   kvSeparator: ": ",
   sconf: terminalPStyleConf

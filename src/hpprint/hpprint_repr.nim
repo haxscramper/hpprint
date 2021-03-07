@@ -297,10 +297,20 @@ func treeRepr*(
     backticks = backticks
   ).join("\n")
 
+proc prettyPrintConverterFields*[T](
+  entry: T, conf: var PPRintConf, path: ObjPath): ObjTree =
+  var flds: seq[(string, ObjTree)]
+  for name, value in fieldPairs(entry):
+    # FIXME correct path name
+    flds.add((name, toSimpleTree(value, conf, path)))
+
+  result = pptObj($typeof(entry), flds)
+
 proc objTreeRepr*[T](entry: T, colored: bool = true): ObjTree =
   mixin items, pairs, prettyPrintConverter
-  var counter = makeCounter()
-  toSimpleTree(entry, counter, PStyleConf(colored: colored))
+  var conf = objectPPrintConf
+  conf.idCounter = makeCounter()
+  toSimpleTree(entry, conf, @[])
 
 proc objTreeRepr*[T](elems: seq[T], colored: bool = true): ObjTree =
   pptSeq(mapIt(elems, objTreeRepr(it, colored = colored)))
