@@ -104,6 +104,8 @@ Pretty print configuration
     ## `nil` references etc.).
     globIgnore*: seq[string]
 
+    showPath*: bool ## Show glob-able path for objects
+
 
 func next(cnt: var IdCounter): int =
   result = cnt.now
@@ -554,7 +556,7 @@ proc toSimpleTree*[Obj](
       else:
         var idx: int = 0
         for name, value in fieldPairs(entry[]):
-          let res = toSimpleTree(value, conf, path & seqAccs(idx))
+          let res = toSimpleTree(value, conf, path & objAccs(name))
           if not res.ignored:
             result.fldPairs.add((name, res))
 
@@ -563,10 +565,17 @@ proc toSimpleTree*[Obj](
     else:
       var idx: int = 0
       for name, value in fieldPairs(entry):
-        let res = toSimpleTree(value, conf, path & objAccs(name))
+        var ok = true
+        when value is ref:
+          if isNil(value):
+            ok = false
 
-        if not res.ignored:
-          result.fldPairs.add((name, res))
+
+        if ok:
+          let res = toSimpleTree(value, conf, path & objAccs(name))
+
+          if not res.ignored:
+            result.fldPairs.add((name, res))
 
         inc idx
 
@@ -643,6 +652,15 @@ proc toSimpleTree*[Obj](
       objId: conf.idCounter.next()
     )
 
+
+  if conf.showPath:
+    let tmp = ObjTree(
+      styling: initPrintStyling(),
+      kind: okComposed,
+      fldPairs: @[(name: toJsonPtr(path), value: result)]
+    )
+
+    return tmp
 
 
 type
@@ -934,7 +952,12 @@ proc arrangeKVPairs(
     var singleLine =
       if current.kind == okSequence or (
         current.kind == okComposed and (not current.namedFields)):
-        input.mapIt(&"{it.val.content[0]}").join(conf.seqSeparator)
+        input.mapIt(tern(
+          it.val.content.len > 0,
+          &"{it.val.content[0]}",
+          ""
+        )).join(conf.seqSeparator)
+
       else:
         input.mapIt(&"{it.name}{conf.kvSeparator}{it.val[0]}").join(
           conf.seqSeparator)
@@ -1089,12 +1112,26 @@ proc pstring*[Obj](
     obj: Obj, ident: int = 0,
     maxWidth: int = 80,
     ignore: seq[string] = @[],
+    showPath: bool = false,
     sconf: PStyleConf = terminalPStyleConf
   ): string =
-  var conf = objectPPrintConf
+  var conf = PPrintConf(
+    maxWidth: 80,
+    identStr: "  ",
+    seqSeparator: ", ",
+    seqPrefix: "- ",
+    seqWrapper: (makeDelim("["), makeDelim("]")),
+    objWrapper: (makeDelim("("), makeDelim(")")),
+    tblWrapper: (makeDelim("{"), makeDelim("}")),
+    kvSeparator: ": ",
+    sconf: terminalPStyleConf
+    # hideEmptyFields: true # FIXME does not seem to work
+  )
+
   conf.idCounter = makeCounter()
   conf.maxWidth = maxWidth
   conf.globIgnore = ignore
+  conf.showPath = showPath
   prettyString(toSimpleTree(obj, conf, @[]), conf, ident)
 
 
@@ -1125,10 +1162,11 @@ proc pprintAtPath*[Obj](obj: Obj, path: TreePath): void =
 
 proc pprint*[Obj](
     obj: Obj, ident: int = 0,
-    maxWidth: int = 80,
-    ignore: seq[string] = @[]
+    maxWidth: int = 110,
+    ignore: seq[string] = @[],
+    showPath: bool = false
   ): void =
-  echo pstring(obj, ident,  maxWidth, ignore = ignore)
+  echo pstring(obj, ident, maxWidth, ignore = ignore, showPath = showPath)
   # var conf = objectPPrintConf
   # conf.maxWidth = maxWidth
   # echo prettyString(toSimpleTree(obj), conf, ident)
