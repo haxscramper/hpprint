@@ -39,7 +39,7 @@ when not defined(nimscript):
 
 import std/[
   strformat, tables, strutils, sequtils, unicode, typetraits,
-  macros, options, intsets
+  macros, options, intsets, xmltree, strtabs
 ]
 
 
@@ -81,6 +81,7 @@ Pretty print configuration
 
     idCounter*: IdCounter
     sconf*: PStyleConf
+    maxDepth*: int
     maxWidth*: int ## Max allowed width
     identStr*: string ## String to use for indentaion
     # wrapLargerThan*: int ##
@@ -139,8 +140,11 @@ const terminalPStyleConf* = PStyleConf(
         of "int", "float":
           result.fg = fgBlue
 
-        of "nil":
+        of "nil", "bool":
           result.fg = fgCyan
+
+        of "NimNode":
+          result.style.incl styleItalic
   )
 )
 
@@ -157,7 +161,7 @@ proc dedicatedConvertMatcher*[Obj](
   ## converters
   return conv(val)
 
-func getStyling(
+func getStyling*(
     conf: PStyleConf, ctype: string,
     stp: StylingPosition = stpDefault
   ): PrintStyling =
@@ -166,6 +170,11 @@ func getStyling(
 
   else:
     conf.typeMapping(ctype, stp)
+
+func getStyling*(
+    conf: PPrintConf, ctype: string, stp: StylingPosition = stpDefault
+  ): PrintStyling =
+  conf.sconf.getStyling(ctype, stp)
 
 proc prettyPrintConverter*(
     val: JsonNode,
@@ -221,7 +230,72 @@ proc prettyPrintConverter*(
               rhs, conf, path & seqAccs(idx))
           )))
 
-proc prettyPrintConverter(
+
+proc prettyPrintConverter*(
+    val: XmlNode,
+    conf: var PPrintConf,
+    path: ObjPath,
+  ): ObjTree =
+  ## Dedicated pretty-print converter implementation for `JsonNode`
+  let nilval = ObjTree(
+    constType: "nil", kind: okConstant,
+    strLit: "null", styling: conf.sconf.getStyling("nil"))
+  if isNil(val):
+    result = nilval
+
+  else:
+    case val.kind:
+      of xnVerbatimText, xnEntity, xnText, xnCData:
+        let name =
+          case val.kind:
+            of xnVerbatimText: "verbatim"
+            of xnCData: "<CDATA"
+            of xnText: "text"
+            of xnEntity: "entity"
+            else: ""
+
+        result = ObjTree(
+          constType: name, kind: okConstant,
+          strLit: &"\"{val.innerText()}\"",
+          styling: conf.sconf.getStyling("string")
+        )
+
+      of xnComment:
+        let text: string = xmltree.text(val)
+        result = ObjTree(
+          constType: "string", kind: okConstant,
+          strLit: &"<!-- {text}",
+          styling: conf.sconf.getStyling("xnComment")
+        )
+
+      of xnElement:
+        result = ObjTree(
+          kind: okComposed,
+          namedFields: true,
+          namedObject: true,
+          name: val.tag(),
+          styling: conf.sconf.getStyling("XML"),
+        )
+
+        if not isNil(attrs(val)):
+          for key, val in pairs(attrs(val)):
+            result.fldPairs.add((
+              key,
+              ObjTree(kind: okConstant, strLit: val,
+                      styling: conf.sconf.getStyling("string"))
+            ))
+
+        var subnodes: seq[ObjTree]
+        for node in items(val):
+          subnodes.add prettyPrintConverter(node, conf, path & objAccs(val.tag))
+
+        result.fldPairs.add(("", ObjTree(
+          kind: okSequence,
+          valItems: subnodes,
+          styling: conf.sconf.getStyling("")
+        )))
+
+proc prettyPrintConverter*(
   val: seq[Rune], conf: var PPrintConf, path: ObjPath): ObjTree =
   ObjTree(
     styling: conf.sconf.getStyling($typeof(val)),
@@ -250,11 +324,13 @@ proc prettyPrintConverter*[R1, R2](
     ]
   )
 
-proc prettyPrintConverter(val: NimNode, path: ObjPath): ObjTree =
+
+proc prettyPrintConverter*(
+  val: NimNode, conf: var PPrintConf, path: ObjPath): ObjTree =
   # TODO can add syntax hightlight to string literal generated from
   #      nim node
   ObjTree(
-    styling: initPrintStyling(),
+    styling: conf.sconf.getStyling("NimNode"),
     kind: okConstant,
     constType: "NimNode",
     strLit: val.toStrLit().strVal()
@@ -340,6 +416,19 @@ proc toSimpleTree*[Obj](
       result.strLit = "<ignored>"
       result.ignored = true
       # result.ignoredBy = ignoredBy
+
+    return
+
+  if path.len > conf.maxDepth:
+    result = ObjTree(
+      styling: conf.sconf.getStyling($typeof(Obj)),
+      kind: okConstant,
+      constType: $typeof(Obj),
+      path: path,
+      objId: conf.idCounter.next(),
+      strLit: "<max depth reached>",
+      ignored: true
+    )
 
     return
 
@@ -1113,6 +1202,7 @@ proc pstring*[Obj](
     maxWidth: int = 80,
     ignore: seq[string] = @[],
     showPath: bool = false,
+    maxDepth: int = 120,
     sconf: PStyleConf = terminalPStyleConf
   ): string =
   var conf = PPrintConf(
@@ -1132,6 +1222,7 @@ proc pstring*[Obj](
   conf.maxWidth = maxWidth
   conf.globIgnore = ignore
   conf.showPath = showPath
+  conf.maxDepth = maxDepth
   prettyString(toSimpleTree(obj, conf, @[]), conf, ident)
 
 
@@ -1164,9 +1255,12 @@ proc pprint*[Obj](
     obj: Obj, ident: int = 0,
     maxWidth: int = 110,
     ignore: seq[string] = @[],
-    showPath: bool = false
+    showPath: bool = false,
+    maxDepth: int = 120
   ): void =
-  echo pstring(obj, ident, maxWidth, ignore = ignore, showPath = showPath)
+  echo pstring(obj, ident, maxWidth,
+               ignore = ignore, showPath = showPath,
+               maxDepth = maxDepth)
   # var conf = objectPPrintConf
   # conf.maxWidth = maxWidth
   # echo prettyString(toSimpleTree(obj), conf, ident)

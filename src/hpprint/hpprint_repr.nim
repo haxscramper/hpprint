@@ -313,10 +313,13 @@ proc objTreeRepr*[T](entry: T, colored: bool = true): ObjTree =
   toSimpleTree(entry, conf, @[])
 
 proc objTreeRepr*[T](elems: seq[T], colored: bool = true): ObjTree =
+  mixin objTreeRepr
   pptSeq(mapIt(elems, objTreeRepr(it, colored = colored)))
 
 proc objTreeRepr*(en: enum): ObjTree =
+  mixin objTreeRepr
   pptConst(directEnumName(en))
 
 proc objTreeRepr*[T: enum](enSet: set[T]): ObjTree =
+  mixin objTreeRepr
   pptConst("{" & mapIt(enSet, directEnumName(it)).join(", ") & "}")
