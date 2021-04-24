@@ -41,3 +41,7 @@
       raw:        ":irc.example.net PONG irc.example.net :1612535161.421481"
       timestamp:  Time(seconds: 1612535161, nanosecond: 421749422)
   #+end_src
+- [ ] When sequence elements and/or object fields are ignore (due to depth
+  limit being reached, or glob path triggers) it should be show in
+  generated output (preferrably using some noticeable markings to avoid
+  confuson when using for object debugging).

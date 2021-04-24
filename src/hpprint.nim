@@ -419,7 +419,7 @@ proc toSimpleTree*[Obj](
 
     return
 
-  if path.len > conf.maxDepth:
+  if conf.maxDepth > 0 and path.len > conf.maxDepth:
     result = ObjTree(
       styling: conf.sconf.getStyling($typeof(Obj)),
       kind: okConstant,
@@ -443,7 +443,7 @@ proc toSimpleTree*[Obj](
 
   elif entry is typeof(nil):
     return ObjTree(
-      styling: sconf.getStyling("nil"),
+      styling: conf.sconf.getStyling("nil"),
       kind: okConstant,
       strLit: "nil",
       path: path,
