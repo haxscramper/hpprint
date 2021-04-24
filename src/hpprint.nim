@@ -1214,7 +1214,8 @@ proc pstring*[Obj](
     objWrapper: (makeDelim("("), makeDelim(")")),
     tblWrapper: (makeDelim("{"), makeDelim("}")),
     kvSeparator: ": ",
-    sconf: terminalPStyleConf
+    sconf: terminalPStyleConf,
+    nowrapMultiline: true
     # hideEmptyFields: true # FIXME does not seem to work
   )
 
