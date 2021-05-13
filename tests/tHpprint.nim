@@ -265,13 +265,10 @@ suite "Colored printing":
 
     tree.getAtPath(@[objAccs("f1"), seqAccs(0)]).annotate(" Hello".toRed())
     tree.getAtPath(@[objAccs("f2")]).annotate("Hello".toGreen())
-    tree.getAtPath(@[objAccs("f2")]).stylize(PrintStyling(
-      fg: fgRed
-    ))
+    tree.getAtPath(@[objAccs("f2")]).stylize(initStyle(fgRed))
 
-    tree.getAtPath(@[objAccs("f2"), seqAccs(1)]).stylize(PrintStyling(
-      fg: fgBlue
-    ))
+    tree.getAtPath(@[objAccs("f2"), seqAccs(1)]).stylize(
+      initStyle(fgBlue))
 
     echo tree.pstring()
 
