@@ -3,6 +3,7 @@ import hmisc/other/hshell
 import hnimast, hnimast/obj_field_macros
 import ../hpprint
 import std/[terminal, tables, sequtils]
+export hshell
 
 #===========================  type definition  ===========================#
 
@@ -28,7 +29,7 @@ type
 proc pprintCwdiff*[T](lhs, rhs: T): void =
   "/tmp/generated.nim".writeFile(pstring lhs)
   "/tmp/expected.nim".writeFile(pstring rhs)
-  execShell(shCmd(cwdiff, "/tmp/expected.nim", "/tmp/generated.nim"))
+  execShell(shellCmd(cwdiff, "/tmp/expected.nim", "/tmp/generated.nim"))
 
 proc diff*[T](lhsIn, rhsIn: T, path: TreePath = @[0]): ObjDiffPaths = #[
 

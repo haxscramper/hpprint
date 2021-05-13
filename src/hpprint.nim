@@ -472,6 +472,16 @@ proc toSimpleTree*[Obj](
     )
 
     for key, val in pairs(entry):
+      when key is ref:
+        if isNil(key):
+          result.valPairs.add(("<nil-key>", "?"))
+          continue
+
+      when val is ref:
+        if isNil(val):
+          # result.valPairs.add(($key, "<nil>"))
+          continue
+
       let res = toSimpleTree(val, conf, path & tableAccs($key))
 
       if not res.ignored:
@@ -547,8 +557,12 @@ proc toSimpleTree*[Obj](
       (entry is string) or
       (entry is char)
     ) and (
-    (compiles(for i in items(entry): discard)) or
-    (compiles(for i in items(entry[]): discard))
+    (
+      (compiles(for i in items(entry): discard)) or
+      (compiles(for i in items(entry[]): discard))
+    ) and (not compiles(entry.kind))
+    # Iterable objects with `.kind` field are most likely to be some form
+    # of AST
   ):
     mixin items
     const directItems = compiles(for i in items(entry): discard)
