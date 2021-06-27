@@ -254,7 +254,7 @@ func treeReprImpl*(
         let fld = tree.fldPairs[0]
         if fld.value.kind == okConstant:
           if tree.namedFields:
-            result &= &"{prefStr}{name} {fld.value}"
+            result &= &"{prefStr}{name} {fld.name}: {fld.value.strLit}"
 
           else:
             result &= &"{prefStr}{name} +-> {fld.value.strLit}"

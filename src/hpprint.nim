@@ -42,6 +42,8 @@ import std/[
   macros, options, intsets, xmltree, strtabs
 ]
 
+export tables, options
+
 
 #==========================  type declaration  ===========================#
 
@@ -273,7 +275,7 @@ proc prettyPrintConverter*(
           kind: okComposed,
           namedFields: true,
           namedObject: true,
-          name: val.tag(),
+          name: "<" & val.tag() & ">",
           styling: conf.sconf.getStyling("XML"),
         )
 
@@ -287,7 +289,8 @@ proc prettyPrintConverter*(
 
         var subnodes: seq[ObjTree]
         for node in items(val):
-          subnodes.add prettyPrintConverter(node, conf, path & objAccs(val.tag))
+          subnodes.add prettyPrintConverter(
+            node, conf, path & objAccs(val.tag))
 
         result.fldPairs.add(("", ObjTree(
           kind: okSequence,
@@ -411,6 +414,8 @@ proc toSimpleTree*[Obj](
 
     if conf.idCounter.isVisited(entry):
       result.strLit = "<visited>"
+      when entry is ref or entry is ptr:
+        result.strLit &= " at " & toRed($cast[int](entry))
 
     else:
       result.strLit = "<ignored>"

@@ -2,6 +2,8 @@
 #+property: header-args:nim+ :flags -d:plainStdout --cc:tcc --hints:off
 #+property: header-args:nim+ :import hpprint/doc_example
 
+* DEPRECATED, use [[https://haxscramper.github.io/hmisc/src/hmisc/other/hpprint.html][hmisc/other/oswrap]]
+
 Generic configurable pretty-printer with partial auto-layout.
 Correctly handles unicode text and ANSI escape codes in text.
 
@@ -16,7 +18,6 @@ nimble install hpprint
 * Links
 
 - [[https://nimble.directory/pkg/hpprint][nimble package]]
-- [[https://discord.gg/hjfYJCU][discord server]]
 - [[https://github.com/haxscramper/hpprint][github]]
 - [[https://haxscramper.github.io/hpprint-doc/src/hpprint.html][API documentation]]
 
@@ -186,6 +187,3 @@ compares object values (and fields), iterates over them using
 Object diff fails to pretty-print things like ~Alias = Table[V, F]~
 when defined in other module, and generally not good with tables right
 now.
-
-If you have any additional questions feel free to join my [[https://discord.gg/hjfYJCU][discord
-server]] and ask questions there.
