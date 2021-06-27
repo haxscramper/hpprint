@@ -2,7 +2,7 @@
 #+property: header-args:nim+ :flags -d:plainStdout --cc:tcc --hints:off
 #+property: header-args:nim+ :import hpprint/doc_example
 
-* DEPRECATED, use [[https://haxscramper.github.io/hmisc/src/hmisc/other/hpprint.html][hmisc/other/oswrap]]
+* DEPRECATED, use [[https://haxscramper.github.io/hmisc/src/hmisc/other/hpprint.html][hmisc/other/hpprint]]
 
 Generic configurable pretty-printer with partial auto-layout.
 Correctly handles unicode text and ANSI escape codes in text.
