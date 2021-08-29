@@ -30,16 +30,16 @@
 import hnimast
 export ObjPath
 import hmisc/types/[hprimitives, colorstring]
-import hmisc/algo/hseq_distance
+import hmisc/algo/[hseq_distance, hseq_mapping, htemplates, hmath]
 import hmisc/macros/introspection
-import hmisc/helpers
+import hmisc/core/all
 
 when not defined(nimscript):
   import terminal
 
 import std/[
   strformat, tables, strutils, sequtils, unicode, typetraits,
-  macros, options, intsets, xmltree, strtabs
+  macros, options, intsets, xmltree, strtabs, enumerate, sugar
 ]
 
 export tables, options
@@ -415,7 +415,7 @@ proc toSimpleTree*[Obj](
     if conf.idCounter.isVisited(entry):
       result.strLit = "<visited>"
       when entry is ref or entry is ptr:
-        result.strLit &= " at " & toRed($cast[int](entry))
+        result.strLit &= " at " & $toRed($cast[int](entry))
 
     else:
       result.strLit = "<ignored>"
@@ -879,7 +879,7 @@ proc relativePosition*(
   let prefixOverride = (rpPrefix in labels)
 
   if prefixOverride and (rpTopLeftLeft in labels or rpBottomRight in labels):
-    raiseArgumentError(
+    raise newArgumentError(
       "Incompatible chunk labels - prefix&top-left-left or prefix&bottom-right")
 
   for pos, label in labels:
@@ -1112,13 +1112,14 @@ proc arrangeKVPairs(
   let (itemLabels, blockLabels, widthConf) =
     getLabelConfiguration(conf = conf, current = current, ident = ident)
 
-  result = input.enumerate().mapIt(
-    relativePosition(it[1].val, (@[makeFldName(it[1])])).
-    relativePosition(
-      itemLabels,
-      ignored = (it[0] == input.len() - 1).tern(
-        {rpBottomRight},
-        {})))
+  result = ((
+    block:
+      collect(newSeq):
+        for idx, it in pairs(input):
+          relativePosition(it.val, (@[makeFldName(it)])).
+            relativePosition(
+              itemLabels,
+              ignored = (idx == input.len() - 1).tern({rpBottomRight}, {}))))
   .makeChunk()
   .relativePosition(blockLabels)
 
@@ -1209,7 +1210,7 @@ let objectPPrintConf* = PPrintConf(
 
 func getSubnodes*(it: ObjTree): seq[ObjTree] =
   case it.kind:
-    of okConstant: raiseArgumentError("No sub for `okConstant`")
+    of okConstant: raise newArgumentError("No sub for `okConstant`")
     of okSequence: it.valItems
     of okTable: it.valPairs.mapIt(it.val)
     of okComposed: it.fldPairs.mapIt(it.value)

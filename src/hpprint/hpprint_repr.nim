@@ -1,7 +1,8 @@
-import strutils, sequtils, strformat, sugar, std/enumerate
+import std/[strutils, sequtils, strformat, sugar], std/enumerate
 import hmisc/types/colorstring
 import hmisc/macros/introspection
 import hnimast
+import hmisc/core/all
 import ../hpprint
 import hmisc/algo/[halgorithm, hseq_mapping, clformat]
 
@@ -193,7 +194,7 @@ func treeReprImpl*(
           &"seq[{tree.itemType}] ", "") &
             "... (" &
             $tree.valItems.len & " " &
-            toPluralNoun("item", tree.valItems.len) & ")"
+            $toPluralNoun("item", tree.valItems.len) & ")"
         ]
 
       let pref = pref & @[currIdx != parentMaxIdx]
@@ -214,7 +215,7 @@ func treeReprImpl*(
 
       if pref.len + 1 > params.maxdepth:
         result &= prefStr & name & "... (" & $tree.valPairs.len & " " &
-          toPluralNoun("pair", tree.valPairs.len) & ")"
+          $toPluralNoun("pair", tree.valPairs.len) & ")"
         return
 
       else:
@@ -244,7 +245,7 @@ func treeReprImpl*(
 
       if pref.len + 1 > params.maxdepth:
         result &= prefStr & name & " ... (" & $tree.fldPairs.len & " " &
-          toPluralNoun("field", tree.fldPairs.len) & ")"
+          $toPluralNoun("field", tree.fldPairs.len) & ")"
         return
 
       elif
